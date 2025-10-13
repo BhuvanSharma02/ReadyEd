@@ -129,7 +129,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Earthquake drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
@@ -142,7 +142,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Fire evacuation drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
@@ -155,7 +155,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Flood safety drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
@@ -168,7 +168,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Hurricane prep drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
@@ -181,7 +181,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Tornado safety drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
@@ -194,7 +194,7 @@ class DrillsScreen extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Winter storm drill coming soon!'),
-                        duration: Duration(seconds: 2),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                   },
