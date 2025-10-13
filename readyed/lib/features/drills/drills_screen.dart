@@ -11,10 +11,10 @@ class DrillsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Virtual Drills'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back),
+        //   onPressed: () => context.pop(),
+        // ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
