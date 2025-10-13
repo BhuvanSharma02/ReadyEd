@@ -23,6 +23,7 @@ class LeaderboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Leaderboard Coming Soon!',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.primary,
@@ -31,6 +32,7 @@ class LeaderboardScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Compete with students across India',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.grey.shade600,
               ),
