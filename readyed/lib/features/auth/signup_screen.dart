@@ -3,7 +3,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../../services/auth_service.dart';
-import '../../models/indian_states_disasters.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -21,7 +20,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String? _selectedState;
 
   @override
   void dispose() {
@@ -34,15 +32,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedState == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your state'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -52,7 +41,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        state: _selectedState!,
+        state: 'Unknown', // Will be updated automatically via location service
       );
 
       if (mounted) {
@@ -163,35 +152,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     }
                     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                       return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // State Selection
-                DropdownButtonFormField<String>(
-                  value: _selectedState,
-                  decoration: InputDecoration(
-                    labelText: 'Select Your State',
-                    prefixIcon: const Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: IndianStatesData.states.map((state) {
-                    return DropdownMenuItem<String>(
-                      value: state.name,
-                      child: Text(state.name),
-                    );
-                  }).toList(),
-                  onChanged: _isLoading ? null : (value) {
-                    setState(() => _selectedState = value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select your state';
                     }
                     return null;
                   },
@@ -312,7 +272,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       _buildBenefit('Track your progress and scores'),
                       _buildBenefit('Compete in state and national leaderboards'),
                       _buildBenefit('Earn achievements and badges'),
-                      _buildBenefit('Get personalized content for your state'),
+                      _buildBenefit('Auto-detect your location for personalized content'),
                       _buildBenefit('Sync across devices'),
                     ],
                   ),
