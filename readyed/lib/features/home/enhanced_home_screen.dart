@@ -313,11 +313,15 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
               size: 20,
             ),
             const SizedBox(width: 8),
-            Text(
-              'Common in ${state.name}',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+            Expanded(
+              child: Text(
+                'Common in ${state.name}',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -331,14 +335,14 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 120,
+          height: 150,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: disasters.take(6).length,
             itemBuilder: (context, index) {
               final disaster = disasters[index];
               return Container(
-                width: 100,
+                width: 140,
                 height: 140,
                 margin: const EdgeInsets.only(right: 12),
                 child: DisasterCategoryCard(

@@ -446,6 +446,7 @@ class _DrillDetailScreenState extends State<DrillDetailScreen> {
         SnackBar(
           content: Text('Correct! ${choice['feedback']}'),
           backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
         ),
       );
     } else {
@@ -453,13 +454,14 @@ class _DrillDetailScreenState extends State<DrillDetailScreen> {
         SnackBar(
           content: Text('Not quite. ${choice['feedback']}'),
           backgroundColor: Colors.orange,
+          duration: Duration(seconds: 1),
         ),
       );
     }
     stepCompletions[currentStep] = true;
     
     // Auto advance after a short delay
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) _nextStep();
     });
   }
