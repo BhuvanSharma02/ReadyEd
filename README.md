@@ -4,12 +4,9 @@ ReadyEd is a comprehensive Flutter-based educational app designed to help users 
 
 ## 📸 Screenshots
 
-| Home Screen | Drill Simulation | Safety Guidelines |
+| Home Screen | Disaster List | Safety Guidelines |
 |------------|-----------------|------------------|
-| <img src="https://github.com/user-attachments/assets/fd22b095-acd8-4ef3-9893-67b59ac100a5" width="250"/> | <img src="https://github.com/user-attachments/assets/fd7479d9-e45a-471f-988b-b5543d80d692" width="250"/> | <img src="https://github.com/user-attachments/assets/17db744b-58e5-4dfb-b4c0-cb5d5d8cf8b4" width="250"/> |
-
-	
-	
+| <img src="https://github.com/user-attachments/assets/fd22b095-acd8-4ef3-9893-67b59ac100a5" width="250"/> | <img src="https://github.com/user-attachments/assets/418bc725-5625-49ef-857e-309ec9d51b8a" width="250"/> | <img src="https://github.com/user-attachments/assets/f1f94840-73f4-4d28-8cb6-b0c9a1da2350" width="250"/> |	
 
 ## Features
 
