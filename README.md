@@ -100,22 +100,10 @@ flutter test
 
 ## Contributing
 
-We welcome contributions to make ReadyEd more comprehensive and effective. Please read our contributing guidelines before submitting pull requests.
+We welcome contributions to make ReadyEd more comprehensive and effective.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Emergency management experts who provided guidance on best practices
-- Educational content reviewers
-- Community feedback and testing
-
-## Contact
-
-For questions, suggestions, or support, please contact the ReadyEd team.
-
----
 
 *ReadyEd - Because being prepared saves lives.*
