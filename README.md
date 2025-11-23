@@ -2,6 +2,12 @@
 
 ReadyEd is a comprehensive Flutter-based educational app designed to help users prepare for and respond to various natural disasters through interactive content, virtual drills, and practical guidelines.
 
+## 📸 Screenshots
+
+| Home Screen | Disaster List | Safety Guidelines |
+|------------|-----------------|------------------|
+| <img src="https://github.com/user-attachments/assets/fd22b095-acd8-4ef3-9893-67b59ac100a5" width="250"/> | <img src="https://github.com/user-attachments/assets/418bc725-5625-49ef-857e-309ec9d51b8a" width="250"/> | <img src="https://github.com/user-attachments/assets/f1f94840-73f4-4d28-8cb6-b0c9a1da2350" width="250"/> |	
+
 ## Features
 
 ### 🚨 Virtual Drills
@@ -94,22 +100,10 @@ flutter test
 
 ## Contributing
 
-We welcome contributions to make ReadyEd more comprehensive and effective. Please read our contributing guidelines before submitting pull requests.
+We welcome contributions to make ReadyEd more comprehensive and effective.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Emergency management experts who provided guidance on best practices
-- Educational content reviewers
-- Community feedback and testing
-
-## Contact
-
-For questions, suggestions, or support, please contact the ReadyEd team.
-
----
 
 *ReadyEd - Because being prepared saves lives.*
