@@ -46,16 +46,16 @@ dependencies:
   provider: ^6.1.1
   
   # Firebase and Authentication
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.2
   
   # Location and Geocoding
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   
   # HTTP and API
-  http: ^1.1.2
+  http: ^1.6.0
   dio: ^5.4.0
   
   # Permissions
@@ -67,6 +67,8 @@ dependencies:
   # Additional UI components
   flutter_spinkit: ^5.2.0
   cached_network_image: ^3.3.0
+  url_launcher: ^6.3.0
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:
@@ -93,6 +95,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/images/
+    - assets/images/badges/
     - assets/videos/
     - assets/audio/
 

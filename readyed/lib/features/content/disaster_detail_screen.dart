@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:readyed/features/quiz/quiz_screen.dart';
 // import 'package:go_router/go_router.dart';
 
 class DisasterDetailScreen extends StatelessWidget {
@@ -154,17 +155,18 @@ class DisasterDetailScreen extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Safety guidelines coming soon!'),
-                          duration: Duration(seconds: 2),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              QuizScreen(disasterType: disasterType),
                         ),
                       );
                     },
-                    icon: const FaIcon(FontAwesomeIcons.listCheck),
-                    label: const Text('Safety Guidelines'),
+                    icon: const FaIcon(FontAwesomeIcons.brain),
+                    label: const Text('Take Quiz'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(

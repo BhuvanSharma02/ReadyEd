@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import '../../models/eonet_event_model.dart';
+import '../../services/eonet_service.dart';
 import '../../services/location_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/indian_states_disasters.dart';
@@ -10,6 +13,7 @@ import '../../widgets/disaster_category_card.dart';
 import '../../widgets/quick_stats_card.dart';
 import '../drills/drill_detail_screen.dart';
 import '../content/disaster_detail_screen.dart';
+import '../emergency_contacts/emergency_contacts_screen.dart';
 import 'state_selector_sheet.dart';
 
 class EnhancedHomeScreen extends StatefulWidget {
@@ -21,13 +25,58 @@ class EnhancedHomeScreen extends StatefulWidget {
 
 class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
   bool _isLocationLoading = false;
+  bool _isEventsLoading = false;
   UserModel? _currentUser;
+  List<EonetEvent> _events = [];
+  final EonetService _eonetService = EonetService();
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
     _loadUserData();
+  }
+
+  Future<void> _fetchNearbyEvents() async {
+    if (mounted) setState(() => _isEventsLoading = true);
+
+    final locationService = Provider.of<LocationService>(context, listen: false);
+    final position = locationService.currentPosition;
+
+    if (position == null) {
+      if (mounted) setState(() => _isEventsLoading = false);
+      return;
+    }
+
+    try {
+      // Fetch all open events from the last 30 days
+      List<EonetEvent> allEvents = await _eonetService.fetchEvents();
+      List<EonetEvent> nearbyEvents = [];
+
+      // Filter events to a 500km radius
+      for (var event in allEvents) {
+        if (event.latitude != null && event.longitude != null) {
+          double distance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            event.latitude!,
+            event.longitude!,
+          );
+          // 500km radius
+          if (distance <= 500000) {
+            nearbyEvents.add(event);
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() => _events = nearbyEvents);
+      }
+    } catch (e) {
+      print('Error fetching EONET events: $e');
+    }
+
+    if (mounted) setState(() => _isEventsLoading = false);
   }
 
   Future<void> _initializeLocation() async {
@@ -37,7 +86,38 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     
     try {
       // Try to detect current state
-      await locationService.detectCurrentState();
+      final detectedState = await locationService.detectCurrentState();
+      
+      if (detectedState == null && mounted) {
+        // Show a helpful message if location couldn't be detected
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.location_off, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Could not detect location. Please enable location services.',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            action: SnackBarAction(
+              label: 'Select Manually',
+              textColor: Colors.white,
+              onPressed: _showStateSelector,
+            ),
+          ),
+        );
+      } else if (detectedState != null) {
+        // If location is detected, fetch events
+        await _fetchNearbyEvents();
+      }
     } catch (e) {
       print('Location detection failed: $e');
     }
@@ -61,20 +141,71 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     final locationService = Provider.of<LocationService>(context, listen: false);
     
     try {
-      await locationService.detectCurrentState();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Location updated: ${locationService.currentState?.name ?? "Unknown"}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      final detectedState = await locationService.detectCurrentState();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  detectedState != null ? Icons.check_circle : Icons.location_off,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    detectedState != null
+                        ? 'Location updated: ${detectedState.name}'
+                        : 'Could not detect location',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            action: detectedState == null
+                ? SnackBarAction(
+                    label: 'Select Manually',
+                    textColor: Colors.white,
+                    onPressed: _showStateSelector,
+                  )
+                : null,
+          ),
+        );
+        if (detectedState != null) {
+          await _fetchNearbyEvents();
+        }
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to detect location: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Failed to detect location. Check permissions.',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            action: SnackBarAction(
+              label: 'Select Manually',
+              textColor: Colors.white,
+              onPressed: _showStateSelector,
+            ),
+          ),
+        );
+      }
     }
     
     if (mounted) {
@@ -92,6 +223,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
           final locationService = Provider.of<LocationService>(context, listen: false);
           locationService.setManualState(state);
           setState(() {});
+          _fetchNearbyEvents();
         },
       ),
     );
@@ -121,6 +253,10 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
                 if (_currentUser != null) _buildQuickStats(),
 
                 const SizedBox(height: 24),
+                
+                // Live Events
+                _buildLiveEvents(),
+                const SizedBox(height: 24),
 
                 // Location-based disasters
                 if (stateDisasters.isNotEmpty) ...[
@@ -129,15 +265,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
                 ],
 
                 // Quick Actions
-                _buildQuickActions(),
+                _buildQuickActions(locationService),
                 const SizedBox(height: 32),
-
-                // Emergency Alert (if any)
-                _buildEmergencyAlert(),
-                const SizedBox(height: 32),
-
-                // Emergency Contact Card
-                _buildEmergencyContact(),
               ],
             ),
           ),
@@ -364,7 +493,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(LocationService locationService) {
+    final currentState = locationService.currentState;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -408,6 +538,31 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
             ),
           ],
         ),
+        if (currentState != null) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionCard(
+                  'Emergency Directory',
+                  'Contacts for ${currentState.name}',
+                  FontAwesomeIcons.phone,
+                  Colors.red,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EmergencyContactsScreen(state: currentState),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(), // Placeholder
+              ),
+            ],
+          ),
+        ]
       ],
     );
   }
@@ -470,85 +625,105 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     );
   }
 
-  Widget _buildEmergencyAlert() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.amber.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            FontAwesomeIcons.triangleExclamation,
-            color: Colors.amber.shade700,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Stay Alert',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
-                  ),
-                ),
-                Text(
-                  'Monitor local weather updates and emergency broadcasts',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.amber.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildLiveEvents() {
+    if (_isEventsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  Widget _buildEmergencyContact() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        border: Border.all(color: Colors.red.shade200),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            FontAwesomeIcons.phone,
-            color: Colors.red.shade700,
-            size: 24,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Emergency Contact',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                Text(
-                  'In case of real emergency, call 112 (National Emergency)',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.red.shade600,
-                  ),
-                ),
-              ],
+    if (_events.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              FontAwesomeIcons.solidCheckCircle,
+              color: Colors.green.shade700,
+              size: 24,
             ),
-          ),
-        ],
-      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'All Clear',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                  ),
+                  Text(
+                    'No significant natural events detected nearby.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Live Events Nearby (500km)',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.amber.shade800,
+              ),
+        ),
+        const SizedBox(height: 12),
+        ..._events.map((event) => Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.amber.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(_getEventIcon(event.categories.first), color: Colors.amber.shade800),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.title,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8.0,
+                            runSpacing: 4.0,
+                            children: event.categories
+                                .map((category) => Chip(
+                                      label: Text(category),
+                                      backgroundColor: Colors.amber.withOpacity(0.1),
+                                    ))
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )).toList(),
+      ],
     );
   }
 
@@ -570,6 +745,25 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
       case 'cloud-hail': return FontAwesomeIcons.cloudShowersHeavy;
       case 'bug': return FontAwesomeIcons.bug;
       case 'cloud-rain': return FontAwesomeIcons.cloudRain;
+      default: return FontAwesomeIcons.triangleExclamation;
+    }
+  }
+
+  IconData _getEventIcon(String category) {
+    switch (category) {
+      case 'drought': return FontAwesomeIcons.sun;
+      case 'dustAndHaze': return FontAwesomeIcons.smog;
+      case 'earthquakes': return FontAwesomeIcons.houseChimneyCrack;
+      case 'floods': return FontAwesomeIcons.houseFloodWater;
+      case 'landslides': return FontAwesomeIcons.mountain;
+      case 'manmade': return FontAwesomeIcons.industry;
+      case 'seaAndLakeIce': return FontAwesomeIcons.snowflake;
+      case 'severeStorms': return FontAwesomeIcons.cloudBolt;
+      case 'snow': return FontAwesomeIcons.snowflake;
+      case 'tempExtremes': return FontAwesomeIcons.temperatureHigh;
+      case 'volcanoes': return FontAwesomeIcons.volcano;
+      case 'waterColor': return FontAwesomeIcons.water;
+      case 'wildfires': return FontAwesomeIcons.fire;
       default: return FontAwesomeIcons.triangleExclamation;
     }
   }

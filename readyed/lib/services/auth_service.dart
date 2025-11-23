@@ -19,10 +19,7 @@ class MockUser {
   });
 }
 
-class AuthService {
-  static final AuthService _instance = AuthService._internal();
-  factory AuthService() => _instance;
-  AuthService._internal();
+class AuthService with ChangeNotifier {
 
   // Firebase instances (may be null if not available)
   FirebaseAuth? _auth;
@@ -76,13 +73,15 @@ class AuthService {
     required String password,
     required String name,
     required String state,
+    String? schoolCode,
+    String? studentClass,
   }) async {
     _initializeFirebaseIfNeeded();
     
     if (_isFirebaseAvailable) {
-      return _firebaseSignUp(email, password, name, state);
+      return _firebaseSignUp(email, password, name, state, schoolCode, studentClass);
     } else {
-      return _mockSignUp(email, password, name, state);
+      return _mockSignUp(email, password, name, state, schoolCode, studentClass);
     }
   }
 
@@ -124,7 +123,7 @@ class AuthService {
   }
 
   // Firebase implementations
-  Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state) async {
+  Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state, String? schoolCode, String? studentClass) async {
     try {
       UserCredential result = await _auth!.createUserWithEmailAndPassword(
         email: email,
@@ -134,13 +133,13 @@ class AuthService {
       User? user = result.user;
       if (user != null) {
         await user.updateDisplayName(name);
-        await _createFirebaseUserDocument(user, name, state);
+        await _createFirebaseUserDocument(user, name, state, schoolCode, studentClass);
       }
 
       return result;
     } on FirebaseAuthException catch (e) {
-      print('Firebase sign up error: ${e.message}');
-      throw e;
+      print('Firebase sign up error: ${e.code}');
+      throw _handleAuthException(e);
     }
   }
 
@@ -152,8 +151,8 @@ class AuthService {
       );
       return result;
     } on FirebaseAuthException catch (e) {
-      print('Firebase sign in error: ${e.message}');
-      throw e;
+      print('Firebase sign in error: ${e.code}');
+      throw _handleAuthException(e);
     }
   }
 
@@ -162,22 +161,27 @@ class AuthService {
       UserCredential result = await _auth!.signInAnonymously();
       User? user = result.user;
       if (user != null) {
-        await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown');
+        await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown','00', '1');
       }
       return result;
+    } on FirebaseAuthException catch (e) {
+      print('Firebase anonymous sign in error: ${e.code}');
+      throw _handleAuthException(e);
     } catch (e) {
       print('Firebase anonymous sign in error: $e');
-      throw e;
+      throw Exception('Failed to sign in as guest. Please try again.');
     }
   }
 
-  Future<void> _createFirebaseUserDocument(User user, String name, String state) async {
+  Future<void> _createFirebaseUserDocument(User user, String name, String state, String? schoolCode, String? studentClass) async {
     try {
       await _firestore!.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'email': user.email ?? '',
         'name': name,
         'state': state,
+        'schoolCode': schoolCode,
+        'studentClass': studentClass,
         'createdAt': FieldValue.serverTimestamp(),
         'totalScore': 0,
         'completedDrills': [],
@@ -194,7 +198,7 @@ class AuthService {
   }
 
   // Mock implementations
-  Future<MockUser?> _mockSignUp(String email, String password, String name, String state) async {
+  Future<MockUser?> _mockSignUp(String email, String password, String name, String state, String? schoolCode, String? studentClass) async {
     try {
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -209,6 +213,8 @@ class AuthService {
         email: email,
         name: name,
         state: state,
+        schoolCode: schoolCode,
+        studentClass: studentClass,
         totalScore: 0,
         completedDrills: [],
         streak: 0,
@@ -339,6 +345,39 @@ class AuthService {
     }
   }
 
+  Future<void> updateUserData(UserModel user) async {
+    _initializeFirebaseIfNeeded();
+
+    if (_isFirebaseAvailable) {
+      await _updateFirebaseUserData(user);
+    } else {
+      _updateMockUserData(user);
+    }
+  }
+
+  Future<void> _updateFirebaseUserData(UserModel user) async {
+    try {
+      await _firestore!
+          .collection('users')
+          .doc(user.uid)
+          .update(user.toMap());
+      notifyListeners();
+    } catch (e) {
+      print('Error updating Firebase user data: $e');
+    }
+  }
+
+  void _updateMockUserData(UserModel user) {
+    try {
+      if (_mockCurrentUser == null) return;
+
+      _mockUserData[_mockCurrentUser!.uid] = user;
+      notifyListeners();
+    } catch (e) {
+      print('Error updating mock user data: $e');
+    }
+  }
+
   // Additional utility methods
   Future<void> updateScore(int additionalScore) async {
     _initializeFirebaseIfNeeded();
@@ -359,6 +398,7 @@ class AuthService {
         'totalScore': FieldValue.increment(additionalScore),
         'lastActiveDate': FieldValue.serverTimestamp(),
       });
+      notifyListeners();
     } catch (e) {
       print('Error updating Firebase score: $e');
     }
@@ -374,6 +414,7 @@ class AuthService {
           totalScore: userData.totalScore + additionalScore,
           lastActiveDate: DateTime.now(),
         );
+        notifyListeners();
       }
     } catch (e) {
       print('Error updating mock score: $e');
@@ -418,4 +459,45 @@ class AuthService {
   }
 
   bool get isFirebaseEnabled => _isFirebaseAvailable;
+
+  // Helper method to convert Firebase error codes to user-friendly messages
+  Exception _handleAuthException(FirebaseAuthException e) {
+    String message;
+    
+    switch (e.code) {
+      case 'invalid-email':
+        message = 'The email address is not valid.';
+        break;
+      case 'user-disabled':
+        message = 'This account has been disabled.';
+        break;
+      case 'user-not-found':
+        message = 'No account found with this email.';
+        break;
+      case 'wrong-password':
+      case 'invalid-credential':
+        message = 'Incorrect email or password.';
+        break;
+      case 'email-already-in-use':
+        message = 'An account already exists with this email.';
+        break;
+      case 'weak-password':
+        message = 'Password is too weak. Please use a stronger password.';
+        break;
+      case 'operation-not-allowed':
+        message = 'This sign-in method is not enabled. Please contact support.';
+        break;
+      case 'too-many-requests':
+        message = 'Too many failed attempts. Please try again later.';
+        break;
+      case 'network-request-failed':
+        message = 'Network error. Please check your internet connection.';
+        break;
+      default:
+        message = e.message ?? 'An error occurred. Please try again.';
+        break;
+    }
+    
+    return Exception(message);
+  }
 }

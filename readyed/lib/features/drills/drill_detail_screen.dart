@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
 
 class DrillDetailScreen extends StatefulWidget {
   final String drillType;
@@ -34,7 +33,7 @@ class _DrillDetailScreenState extends State<DrillDetailScreen> {
         title: Text('${drillData['title']} Drill'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           if (isCompleted)
@@ -422,7 +421,7 @@ class _DrillDetailScreenState extends State<DrillDetailScreen> {
               const SizedBox(width: 16),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => context.pop(),
+                  onPressed: () => Navigator.of(context).pop(),
                   icon: const FaIcon(FontAwesomeIcons.house),
                   label: const Text('Back Home'),
                   style: ElevatedButton.styleFrom(

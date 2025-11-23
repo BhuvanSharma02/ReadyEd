@@ -56,7 +56,6 @@ class LocationService {
       // Get current position with high accuracy
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 10),
       );
 
       _currentPosition = position;
@@ -72,13 +71,9 @@ class LocationService {
       Position? position = await getCurrentPosition();
       if (position == null) return null;
 
-      // First, try to find the nearest state using coordinates
-      IndianState? nearestState = IndianStatesData.findNearestState(
-        position.latitude,
-        position.longitude,
-      );
+      print('📍 Location detected: ${position.latitude}, ${position.longitude}');
 
-      // Verify with geocoding if available
+      // First priority: Try geocoding for accurate state name
       try {
         List<Placemark> placemarks = await placemarkFromCoordinates(
           position.latitude,
@@ -89,24 +84,91 @@ class LocationService {
           Placemark place = placemarks.first;
           String? detectedState = place.administrativeArea;
           
-          if (detectedState != null) {
+          print('🗺️ Geocoding result: $detectedState');
+          print('📍 Full address: ${place.locality}, ${place.administrativeArea}, ${place.country}');
+          
+          if (detectedState != null && detectedState.isNotEmpty) {
+            // Try exact match first
             IndianState? geocodedState = IndianStatesData.getStateByName(detectedState);
+            
+            // If exact match fails, try fuzzy matching
+            if (geocodedState == null) {
+              geocodedState = _findStateByFuzzyMatch(detectedState);
+            }
+            
             if (geocodedState != null) {
+              print('✅ State detected: ${geocodedState.name}');
               _currentState = geocodedState;
               return geocodedState;
             }
           }
         }
       } catch (e) {
-        print('Geocoding failed, using nearest state: $e');
+        print('⚠️ Geocoding failed: $e');
+      }
+
+      // Fallback: Use nearest state based on coordinates
+      print('📍 Using coordinate-based detection as fallback');
+      IndianState? nearestState = IndianStatesData.findNearestState(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (nearestState != null) {
+        print('✅ Nearest state: ${nearestState.name}');
       }
 
       _currentState = nearestState;
       return nearestState;
     } catch (e) {
-      print('Error detecting current state: $e');
+      print('❌ Error detecting current state: $e');
       return null;
     }
+  }
+
+  // Helper method for fuzzy state name matching
+  IndianState? _findStateByFuzzyMatch(String stateName) {
+    final lowerStateName = stateName.toLowerCase().trim();
+    
+    // Common variations and mappings
+    final stateMap = {
+      'delhi': 'Delhi',
+      'national capital territory of delhi': 'Delhi',
+      'nct of delhi': 'Delhi',
+      'new delhi': 'Delhi',
+      'bengaluru': 'Karnataka',
+      'bangalore': 'Karnataka',
+      'mumbai': 'Maharashtra',
+      'bombay': 'Maharashtra',
+      'kolkata': 'West Bengal',
+      'calcutta': 'West Bengal',
+      'chennai': 'Tamil Nadu',
+      'madras': 'Tamil Nadu',
+      'hyderabad': 'Telangana',
+      'tn': 'Tamil Nadu',
+      'karnataka state': 'Karnataka',
+      'tamilnadu': 'Tamil Nadu',
+      'uttarakhand': 'Uttarakhand',
+      'uttaranchal': 'Uttarakhand',
+      'orissa': 'Odisha',
+      'chhattisgarh': 'Chhattisgarh',
+      'chattisgarh': 'Chhattisgarh',
+    };
+    
+    // Check direct mapping
+    if (stateMap.containsKey(lowerStateName)) {
+      return IndianStatesData.getStateByName(stateMap[lowerStateName]!);
+    }
+    
+    // Try partial matching
+    for (IndianState state in IndianStatesData.states) {
+      if (state.name.toLowerCase().contains(lowerStateName) ||
+          lowerStateName.contains(state.name.toLowerCase())) {
+        return state;
+      }
+    }
+    
+    return null;
   }
 
   Future<String> getLocationDescription() async {
@@ -142,6 +204,20 @@ class LocationService {
 
   void setManualState(IndianState state) {
     _currentState = state;
+    // When a state is set manually, update the "current position" to the
+    // center of that state so that nearby events are fetched for it.
+    _currentPosition = Position(
+      latitude: state.coordinates[0],
+      longitude: state.coordinates[1],
+      timestamp: DateTime.now(),
+      accuracy: 0.0,
+      altitude: 0.0,
+      altitudeAccuracy: 0.0,
+      heading: 0.0,
+      headingAccuracy: 0.0,
+      speed: 0.0,
+      speedAccuracy: 0.0,
+    );
   }
 
   List<DisasterType> getCurrentStateDisasters() {

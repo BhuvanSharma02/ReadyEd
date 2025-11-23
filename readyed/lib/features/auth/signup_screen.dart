@@ -17,9 +17,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _schoolCodeController = TextEditingController();
+  String? _selectedClass;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  
+  final List<String> _classes = [
+    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
+    'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
+    'Class 11', 'Class 12',
+  ];
 
   @override
   void dispose() {
@@ -27,6 +35,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _schoolCodeController.dispose();
     super.dispose();
   }
 
@@ -42,13 +51,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text,
         name: _nameController.text.trim(),
         state: 'Unknown', // Will be updated automatically via location service
+        schoolCode: _schoolCodeController.text.trim().isEmpty ? null : _schoolCodeController.text.trim(),
+        studentClass: _selectedClass,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Account created successfully!',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
         Navigator.pop(context);
@@ -57,8 +81,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    e.toString().replaceAll('Exception: ', ''),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.black87,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -154,6 +192,49 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       return 'Please enter a valid email';
                     }
                     return null;
+                  },
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // School Code Field
+                TextFormField(
+                  controller: _schoolCodeController,
+                  keyboardType: TextInputType.text,
+                  enabled: !_isLoading,
+                  decoration: InputDecoration(
+                    labelText: 'School Code (Optional)',
+                    helperText: 'Enter your school\'s unique code if applicable',
+                    prefixIcon: const Icon(Icons.school_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Class Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedClass,
+                  decoration: InputDecoration(
+                    labelText: 'Class (Optional)',
+                    helperText: 'Select your current class',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: _classes.map((String classValue) {
+                    return DropdownMenuItem<String>(
+                      value: classValue,
+                      child: Text(classValue),
+                    );
+                  }).toList(),
+                  onChanged: _isLoading ? null : (String? newValue) {
+                    setState(() {
+                      _selectedClass = newValue;
+                    });
                   },
                 ),
                 
