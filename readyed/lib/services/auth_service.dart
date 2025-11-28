@@ -185,8 +185,6 @@ class AuthService with ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'totalScore': 0,
         'completedDrills': [],
-        'streak': 0,
-        'lastActiveDate': FieldValue.serverTimestamp(),
         'achievements': [],
         'profileImageUrl': '',
         'isAnonymous': user.isAnonymous,
@@ -217,12 +215,10 @@ class AuthService with ChangeNotifier {
         studentClass: studentClass,
         totalScore: 0,
         completedDrills: [],
-        streak: 0,
         achievements: [],
         profileImageUrl: '',
         isAnonymous: false,
         createdAt: DateTime.now(),
-        lastActiveDate: DateTime.now(),
       );
       
       _mockCurrentUser = mockUser;
@@ -253,12 +249,10 @@ class AuthService with ChangeNotifier {
           state: 'California',
           totalScore: 150,
           completedDrills: [],
-          streak: 3,
           achievements: [],
           profileImageUrl: '',
           isAnonymous: false,
           createdAt: DateTime.now().subtract(const Duration(days: 30)),
-          lastActiveDate: DateTime.now(),
         );
       }
       
@@ -289,12 +283,10 @@ class AuthService with ChangeNotifier {
         state: 'Unknown',
         totalScore: 0,
         completedDrills: [],
-        streak: 0,
         achievements: [],
         profileImageUrl: '',
         isAnonymous: true,
         createdAt: DateTime.now(),
-        lastActiveDate: DateTime.now(),
       );
       
       _mockCurrentUser = mockUser;
@@ -396,7 +388,6 @@ class AuthService with ChangeNotifier {
 
       await _firestore!.collection('users').doc(user.uid).update({
         'totalScore': FieldValue.increment(additionalScore),
-        'lastActiveDate': FieldValue.serverTimestamp(),
       });
       notifyListeners();
     } catch (e) {
@@ -412,7 +403,6 @@ class AuthService with ChangeNotifier {
       if (userData != null) {
         _mockUserData[_mockCurrentUser!.uid] = userData.copyWith(
           totalScore: userData.totalScore + additionalScore,
-          lastActiveDate: DateTime.now(),
         );
         notifyListeners();
       }

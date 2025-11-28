@@ -17,20 +17,34 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizScreenState extends State<QuizScreen>
+    with SingleTickerProviderStateMixin {
   late ConfettiController _confettiController;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
   int _questionIndex = 0;
   int _score = 0;
+  int? _selectedAnswerIndex;
+  bool _isAnswerLocked = false;
 
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 1));
+    _confettiController =
+        ConfettiController(duration: const Duration(seconds: 1));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fadeAnimation =
+        CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
+    _animationController.forward();
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -78,17 +92,41 @@ class _QuizScreenState extends State<QuizScreen> {
     ],
   };
 
-  void _answerQuestion(bool isCorrect) {
+  void _answerQuestion(bool isCorrect, int answerIndex) {
+    if (_isAnswerLocked) return;
+
+    setState(() {
+      _selectedAnswerIndex = answerIndex;
+      _isAnswerLocked = true;
+    });
+
     if (isCorrect) {
       _score++;
     }
 
-    if (_questionIndex == (_quizzes[widget.disasterType]?.length ?? 0) - 1) {
-      _onQuizComplete();
-    }
+    Future.delayed(const Duration(seconds: 1), () async {
+      if (!mounted) return;
 
-    setState(() {
-      _questionIndex++;
+      final quizLength = _quizzes[widget.disasterType]?.length ?? 0;
+      if (_questionIndex < quizLength - 1) {
+        setState(() {
+          _questionIndex++;
+          _selectedAnswerIndex = null;
+          _isAnswerLocked = false;
+          _animationController.reset();
+          _animationController.forward();
+        });
+      } else {
+        // Quiz has ended
+        await _onQuizComplete();
+        if (mounted) {
+          setState(() {
+            _questionIndex++; // This will trigger _buildResult()
+            _selectedAnswerIndex = null;
+            _isAnswerLocked = false;
+          });
+        }
+      }
     });
   }
 
@@ -106,7 +144,9 @@ class _QuizScreenState extends State<QuizScreen> {
     overlay.insert(overlayEntry);
 
     Future.delayed(const Duration(seconds: 4), () {
-      overlayEntry.remove();
+      if (mounted) {
+        overlayEntry.remove();
+      }
     });
   }
 
@@ -129,6 +169,7 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     }
 
+    if (!mounted) return;
     _confettiController.play();
   }
 
@@ -136,6 +177,10 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {
       _questionIndex = 0;
       _score = 0;
+      _selectedAnswerIndex = null;
+      _isAnswerLocked = false;
+      _animationController.reset();
+      _animationController.forward();
     });
   }
 
@@ -146,36 +191,129 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.disasterType.capitalize()} Quiz'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
-      body: _questionIndex < quizData.length
-          ? _buildQuiz(quizData)
-          : _buildResult(),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: _questionIndex < quizData.length
+            ? _buildQuiz(quizData)
+            : _buildResult(),
+      ),
     );
   }
 
   Widget _buildQuiz(List<Map<String, Object>> quizData) {
     var question = quizData[_questionIndex];
+    double progress = (_questionIndex + 1) / quizData.length;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              color: colorScheme.primary,
+              minHeight: 12,
+            ),
+          ),
+          const SizedBox(height: 24),
           Text(
             'Question ${_questionIndex + 1}/${quizData.length}',
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
-          Text(
-            question['question'] as String,
-            style: Theme.of(context).textTheme.headlineSmall,
+          Card(
+            elevation: 8,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                question['question'] as String,
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ),
           const SizedBox(height: 32),
-          ...(question['answers'] as List<Map<String, Object>>).map((answer) {
-            return ElevatedButton(
-              onPressed: () => _answerQuestion(answer['correct'] as bool),
-              child: Text(answer['text'] as String),
-            );
-          }),
+          Expanded(
+            child: ListView.builder(
+              itemCount:
+                  (question['answers'] as List<Map<String, Object>>).length,
+              itemBuilder: (context, index) {
+                var answer =
+                    (question['answers'] as List<Map<String, Object>>)[index];
+                bool isCorrect = answer['correct'] as bool;
+                bool isSelected = index == _selectedAnswerIndex;
+
+                Color cardColor = colorScheme.surface;
+                Color borderColor = colorScheme.outline;
+                Widget? trailingIcon;
+
+                if (_isAnswerLocked) {
+                  if (isSelected) {
+                    cardColor = isCorrect
+                        ? Colors.green.withAlpha(26)
+                        : Colors.red.withAlpha(26);
+                    borderColor = isCorrect ? Colors.green : Colors.red;
+                    trailingIcon = isCorrect
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : const Icon(Icons.cancel, color: Colors.red);
+                  } else if (isCorrect) {
+                    cardColor = Colors.green.withAlpha(26);
+                    borderColor = Colors.green;
+                    trailingIcon =
+                        const Icon(Icons.check_circle_outline, color: Colors.green);
+                  }
+                }
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8.0),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: borderColor, width: 2),
+                  ),
+                  color: cardColor,
+                  child: InkWell(
+                    onTap:
+                        _isAnswerLocked ? null : () => _answerQuestion(isCorrect, index),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              answer['text'] as String,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          if (trailingIcon != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: trailingIcon,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -183,48 +321,85 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Widget _buildResult() {
     final quizData = _quizzes[widget.disasterType] ?? [];
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Stack(
       alignment: Alignment.topCenter,
       children: [
         Center(
-          child: Card(
-            elevation: 8,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Quiz Completed!',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'You scored $_score out of ${quizData.length}',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You earned ${_score * 10} points!',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.green),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _resetQuiz,
-                        child: const Text('Retake Quiz'),
-                      ),
-                      const SizedBox(width: 16),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Go Back'),
-                      ),
-                    ],
-                  ),
-                ],
+          child: AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _animationController.value,
+                child: child,
+              );
+            },
+            child: Card(
+              elevation: 8,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Quiz Completed!',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineMedium
+                          ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'You scored',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    Text(
+                      '$_score out of ${quizData.length}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .displayMedium
+                          ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'You earned ${_score * 10} points!',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: Colors.green),
+                    ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _resetQuiz,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retake Quiz'),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Go Back'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -233,9 +408,9 @@ class _QuizScreenState extends State<QuizScreen> {
           confettiController: _confettiController,
           blastDirectionality: BlastDirectionality.explosive,
           shouldLoop: false,
-          numberOfParticles: 30,
-          emissionFrequency: 0.05,
-          gravity: 0.2,
+          numberOfParticles: 50,
+          emissionFrequency: 0.03,
+          gravity: 0.3,
           colors: const [
             Colors.green,
             Colors.blue,
@@ -245,7 +420,8 @@ class _QuizScreenState extends State<QuizScreen> {
           ],
           createParticlePath: (size) {
             final path = Path();
-            path.addOval(Rect.fromCircle(center: Offset.zero, radius: size.width / 2));
+            path.addOval(
+                Rect.fromCircle(center: Offset.zero, radius: size.width / 4));
             return path;
           },
         ),

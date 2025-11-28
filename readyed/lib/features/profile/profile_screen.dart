@@ -111,7 +111,6 @@ class ProfileScreen extends StatelessWidget {
           children: [
             _buildStatItem(context, 'Score', user.totalScore.toString(), FontAwesomeIcons.star),
             _buildStatItem(context, 'Level', user.getLevel().toString(), FontAwesomeIcons.trophy),
-            _buildStatItem(context, 'Streak', '${user.streak} days', FontAwesomeIcons.fire),
           ],
         ),
       ),

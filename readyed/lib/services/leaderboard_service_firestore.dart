@@ -14,7 +14,6 @@ class LeaderboardService {
       name: 'Disaster Pro',
       state: 'California',
       totalScore: 2450,
-      streak: 15,
       profileImageUrl: '',
       rank: 1,
     ),
@@ -23,7 +22,6 @@ class LeaderboardService {
       name: 'Safety Champion',
       state: 'Texas',
       totalScore: 2200,
-      streak: 12,
       profileImageUrl: '',
       rank: 2,
     ),
@@ -32,7 +30,6 @@ class LeaderboardService {
       name: 'Emergency Expert',
       state: 'Florida',
       totalScore: 2100,
-      streak: 8,
       profileImageUrl: '',
       rank: 3,
     ),
@@ -41,7 +38,6 @@ class LeaderboardService {
       name: 'Preparedness Master',
       state: 'California',
       totalScore: 1980,
-      streak: 22,
       profileImageUrl: '',
       rank: 4,
     ),
@@ -50,7 +46,6 @@ class LeaderboardService {
       name: 'Crisis Solver',
       state: 'New York',
       totalScore: 1850,
-      streak: 5,
       profileImageUrl: '',
       rank: 5,
     ),
@@ -170,19 +165,6 @@ class LeaderboardService {
     }
   }
 
-  // Get top performers by streak
-  Future<List<LeaderboardEntry>> getStreakLeaderboard({int limit = 20}) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 400));
-      List<LeaderboardEntry> sortedByStreak = List.from(_mockLeaderboard);
-      sortedByStreak.sort((a, b) => b.streak.compareTo(a.streak));
-      return sortedByStreak.take(limit).toList();
-    } catch (e) {
-      print('Mock error getting streak leaderboard: $e');
-      return [];
-    }
-  }
-
   // Get statistics for a specific state
   Future<StateStatistics> getStateStatistics(String state) async {
     try {
@@ -198,12 +180,10 @@ class LeaderboardService {
           averageScore: 0.0,
           totalScore: 0,
           highestScore: 0,
-          averageStreak: 0.0,
         );
       }
 
       int totalScore = stateUsers.fold(0, (sum, user) => sum + user.totalScore);
-      int totalStreak = stateUsers.fold(0, (sum, user) => sum + user.streak);
       int highestScore = stateUsers.map((u) => u.totalScore).reduce((a, b) => a > b ? a : b);
 
       return StateStatistics(
@@ -212,7 +192,6 @@ class LeaderboardService {
         averageScore: totalScore / stateUsers.length,
         totalScore: totalScore,
         highestScore: highestScore,
-        averageStreak: totalStreak / stateUsers.length,
       );
     } catch (e) {
       print('Mock error getting state statistics: $e');
@@ -222,7 +201,7 @@ class LeaderboardService {
         averageScore: 0.0,
         totalScore: 0,
         highestScore: 0,
-        averageStreak: 0.0,
+
       );
     }
   }
@@ -268,7 +247,6 @@ class StateStatistics {
   final double averageScore;
   final int totalScore;
   final int highestScore;
-  final double averageStreak;
 
   StateStatistics({
     required this.state,
@@ -276,6 +254,5 @@ class StateStatistics {
     required this.averageScore,
     required this.totalScore,
     required this.highestScore,
-    required this.averageStreak,
   });
 }

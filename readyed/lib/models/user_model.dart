@@ -10,8 +10,6 @@ class UserModel {
   final DateTime createdAt;
   final int totalScore;
   final List<CompletedDrill> completedDrills;
-  final int streak;
-  final DateTime lastActiveDate;
   final List<String> achievements;
   final String profileImageUrl;
   final bool isAnonymous;
@@ -26,8 +24,6 @@ class UserModel {
     required this.createdAt,
     required this.totalScore,
     required this.completedDrills,
-    required this.streak,
-    required this.lastActiveDate,
     required this.achievements,
     required this.profileImageUrl,
     required this.isAnonymous,
@@ -47,8 +43,6 @@ class UserModel {
               ?.map((drill) => CompletedDrill.fromMap(drill))
               .toList() ??
           [],
-      streak: map['streak'] ?? 0,
-      lastActiveDate: (map['lastActiveDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       achievements: List<String>.from(map['achievements'] ?? []),
       profileImageUrl: map['profileImageUrl'] ?? '',
       isAnonymous: map['isAnonymous'] ?? false,
@@ -66,8 +60,6 @@ class UserModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'totalScore': totalScore,
       'completedDrills': completedDrills.map((drill) => drill.toMap()).toList(),
-      'streak': streak,
-      'lastActiveDate': Timestamp.fromDate(lastActiveDate),
       'achievements': achievements,
       'profileImageUrl': profileImageUrl,
       'isAnonymous': isAnonymous,
@@ -84,8 +76,6 @@ class UserModel {
     DateTime? createdAt,
     int? totalScore,
     List<CompletedDrill>? completedDrills,
-    int? streak,
-    DateTime? lastActiveDate,
     List<String>? achievements,
     String? profileImageUrl,
     bool? isAnonymous,
@@ -100,8 +90,6 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       totalScore: totalScore ?? this.totalScore,
       completedDrills: completedDrills ?? this.completedDrills,
-      streak: streak ?? this.streak,
-      lastActiveDate: lastActiveDate ?? this.lastActiveDate,
       achievements: achievements ?? this.achievements,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       isAnonymous: isAnonymous ?? this.isAnonymous,
@@ -191,7 +179,6 @@ class LeaderboardEntry {
   final String name;
   final String state;
   final int totalScore;
-  final int streak;
   final String profileImageUrl;
   final int rank;
 
@@ -200,7 +187,6 @@ class LeaderboardEntry {
     required this.name,
     required this.state,
     required this.totalScore,
-    required this.streak,
     required this.profileImageUrl,
     required this.rank,
   });
@@ -211,7 +197,6 @@ class LeaderboardEntry {
       name: map['name'] ?? 'Anonymous',
       state: map['state'] ?? 'Unknown',
       totalScore: map['totalScore'] ?? 0,
-      streak: map['streak'] ?? 0,
       profileImageUrl: map['profileImageUrl'] ?? '',
       rank: rank,
     );
@@ -223,7 +208,6 @@ class LeaderboardEntry {
       name: user.name,
       state: user.state,
       totalScore: user.totalScore,
-      streak: user.streak,
       profileImageUrl: user.profileImageUrl,
       rank: rank,
     );
@@ -296,15 +280,6 @@ class Achievement {
         color: '0xFFFFD700',
         pointsRequired: 1000,
         isUnlocked: unlockedAchievements.contains('disaster_expert'),
-      ),
-      Achievement(
-        id: 'streak_master',
-        title: 'Streak Master',
-        description: 'Maintain a 7-day streak',
-        iconName: 'fire',
-        color: '0xFFFF5722',
-        pointsRequired: 0, // Special achievement based on streak
-        isUnlocked: unlockedAchievements.contains('streak_master'),
       ),
     ];
 

@@ -14,6 +14,7 @@ import '../../widgets/quick_stats_card.dart';
 import '../drills/drill_detail_screen.dart';
 import '../content/disaster_detail_screen.dart';
 import '../emergency_contacts/emergency_contacts_screen.dart';
+import '../nearby_finder/nearby_finder_screen.dart';
 import 'state_selector_sheet.dart';
 
 class EnhancedHomeScreen extends StatefulWidget {
@@ -411,15 +412,6 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: QuickStatsCard(
-            title: '${_currentUser!.streak} Day',
-            value: 'Streak',
-            icon: FontAwesomeIcons.fire,
-            color: Colors.red,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: QuickStatsCard(
             title: '${_currentUser!.getTotalDrillsCompleted()}',
             value: 'Drills Done',
             icon: FontAwesomeIcons.userShield,
@@ -558,7 +550,18 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Container(), // Placeholder
+                child: _buildActionCard(
+                  'Class Finder',
+                  'Find students nearby',
+                  FontAwesomeIcons.users,
+                  Colors.purple,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NearbyFinderScreen(),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

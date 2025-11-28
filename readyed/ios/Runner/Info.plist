@@ -41,6 +41,21 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth to find nearby students and teachers.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app uses Bluetooth to find nearby students and teachers.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app uses the local network to find nearby students and teachers.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses location to aid in discovering nearby devices.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to location when open to show the compass direction.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_com.readyed.app._tcp</string>
+		<string>_com.readyed.app._udp</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

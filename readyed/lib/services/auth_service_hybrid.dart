@@ -181,8 +181,6 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'totalScore': 0,
         'completedDrills': [],
-        'streak': 0,
-        'lastActiveDate': FieldValue.serverTimestamp(),
         'achievements': [],
         'profileImageUrl': '',
         'isAnonymous': user.isAnonymous,
@@ -211,12 +209,10 @@ class AuthService {
         state: state,
         totalScore: 0,
         completedDrills: [],
-        streak: 0,
         achievements: [],
         profileImageUrl: '',
         isAnonymous: false,
         createdAt: DateTime.now(),
-        lastActiveDate: DateTime.now(),
       );
       
       _mockCurrentUser = mockUser;
@@ -247,12 +243,10 @@ class AuthService {
           state: 'California',
           totalScore: 150,
           completedDrills: [],
-          streak: 3,
           achievements: [],
           profileImageUrl: '',
           isAnonymous: false,
           createdAt: DateTime.now().subtract(const Duration(days: 30)),
-          lastActiveDate: DateTime.now(),
         );
       }
       
@@ -283,12 +277,10 @@ class AuthService {
         state: 'Unknown',
         totalScore: 0,
         completedDrills: [],
-        streak: 0,
         achievements: [],
         profileImageUrl: '',
         isAnonymous: true,
         createdAt: DateTime.now(),
-        lastActiveDate: DateTime.now(),
       );
       
       _mockCurrentUser = mockUser;
@@ -357,7 +349,6 @@ class AuthService {
 
       await _firestore!.collection('users').doc(user.uid).update({
         'totalScore': FieldValue.increment(additionalScore),
-        'lastActiveDate': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       print('Error updating Firebase score: $e');
@@ -372,7 +363,6 @@ class AuthService {
       if (userData != null) {
         _mockUserData[_mockCurrentUser!.uid] = userData.copyWith(
           totalScore: userData.totalScore + additionalScore,
-          lastActiveDate: DateTime.now(),
         );
       }
     } catch (e) {
