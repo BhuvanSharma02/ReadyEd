@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
-import '../../models/eonet_event_model.dart';
-import '../../services/eonet_service.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
+import '../../models/disaster_alert.dart';
+import '../../services/alerts_service.dart';
 import '../../services/location_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/indian_states_disasters.dart';
@@ -15,6 +16,8 @@ import '../drills/drill_detail_screen.dart';
 import '../content/disaster_detail_screen.dart';
 import '../emergency_contacts/emergency_contacts_screen.dart';
 import '../nearby_finder/nearby_finder_screen.dart';
+import '../preparedness/emergency_kit_screen.dart';
+import '../alerts/alerts_screen.dart';
 import 'state_selector_sheet.dart';
 
 class EnhancedHomeScreen extends StatefulWidget {
@@ -28,8 +31,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
   bool _isLocationLoading = false;
   bool _isEventsLoading = false;
   UserModel? _currentUser;
-  List<EonetEvent> _events = [];
-  final EonetService _eonetService = EonetService();
+  List<DisasterAlert> _alerts = [];
+  final AlertsService _alertsService = AlertsService();
 
   @override
   void initState() {
@@ -38,50 +41,59 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     _loadUserData();
   }
 
-  Future<void> _fetchNearbyEvents() async {
+  Future<void> _fetchRecentAlerts() async {
     if (mounted) setState(() => _isEventsLoading = true);
 
     final locationService = Provider.of<LocationService>(context, listen: false);
-    final position = locationService.currentPosition;
+    final currentState = locationService.currentState;
 
-    if (position == null) {
+    if (currentState == null) {
       if (mounted) setState(() => _isEventsLoading = false);
       return;
     }
 
     try {
-      // Fetch all open events from the last 30 days
-      List<EonetEvent> allEvents = await _eonetService.fetchEvents();
-      List<EonetEvent> nearbyEvents = [];
+      // Fetch alerts for the current state
+      List<DisasterAlert> allAlerts = await _alertsService.fetchAlerts(currentState.name);
+      List<DisasterAlert> recentAlerts = [];
 
-      // Filter events to a 500km radius
-      for (var event in allEvents) {
-        if (event.latitude != null && event.longitude != null) {
-          double distance = Geolocator.distanceBetween(
-            position.latitude,
-            position.longitude,
-            event.latitude!,
-            event.longitude!,
-          );
-          // 500km radius
-          if (distance <= 500000) {
-            nearbyEvents.add(event);
+      final now = DateTime.now();
+      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
+
+      for (var alert in allAlerts) {
+        try {
+          // Parse the pubDate (assuming standard RSS date format or ISO)
+          // Since DisasterAlert stores it as a String, we parse it here.
+          // Using HttpDate as it handles RFC-1123 common in RSS
+          DateTime? alertDate;
+          try {
+             alertDate = HttpDate.parse(alert.pubDate);
+          } catch (_) {
+             // Fallback if not HttpDate
+             alertDate = DateTime.tryParse(alert.pubDate);
           }
+
+          if (alertDate != null && alertDate.isAfter(twentyFourHoursAgo)) {
+            recentAlerts.add(alert);
+          }
+        } catch (e) {
+          // Skip if date parsing fails
+          print('Error parsing date for alert: ${alert.title}');
         }
       }
 
       if (mounted) {
-        setState(() => _events = nearbyEvents);
+        setState(() => _alerts = recentAlerts);
       }
     } catch (e) {
-      print('Error fetching EONET events: $e');
+      print('Error fetching alerts: $e');
     }
 
     if (mounted) setState(() => _isEventsLoading = false);
   }
 
   Future<void> _initializeLocation() async {
-    setState(() => _isLocationLoading = true);
+    if (mounted) setState(() => _isLocationLoading = true);
     
     final locationService = Provider.of<LocationService>(context, listen: false);
     
@@ -116,8 +128,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
           ),
         );
       } else if (detectedState != null) {
-        // If location is detected, fetch events
-        await _fetchNearbyEvents();
+        // If location is detected, fetch alerts
+        await _fetchRecentAlerts();
       }
     } catch (e) {
       print('Location detection failed: $e');
@@ -137,7 +149,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
   }
 
   Future<void> _refreshLocation() async {
-    setState(() => _isLocationLoading = true);
+    if (mounted) setState(() => _isLocationLoading = true);
     
     final locationService = Provider.of<LocationService>(context, listen: false);
     
@@ -177,7 +189,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
           ),
         );
         if (detectedState != null) {
-          await _fetchNearbyEvents();
+          await _fetchRecentAlerts();
         }
       }
     } catch (e) {
@@ -224,7 +236,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
           final locationService = Provider.of<LocationService>(context, listen: false);
           locationService.setManualState(state);
           setState(() {});
-          _fetchNearbyEvents();
+          _fetchRecentAlerts();
         },
       ),
     );
@@ -255,7 +267,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
 
                 const SizedBox(height: 24),
                 
-                // Live Events
+                // Live Alerts
                 _buildLiveEvents(),
                 const SizedBox(height: 24),
 
@@ -275,6 +287,8 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
       ),
     );
   }
+
+  // ... (Header and QuickStats methods remain mostly same, just checking context)
 
   Widget _buildHeader(IndianState? currentState) {
     return Container(
@@ -521,11 +535,12 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
                 'Check your preparedness',
                 FontAwesomeIcons.suitcase,
                 Colors.blue,
-                () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Emergency kit checklist coming soon!')),
-                  );
-                },
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EmergencyKitScreen(),
+                  ),
+                ),
               ),
             ),
           ],
@@ -633,7 +648,7 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_events.isEmpty) {
+    if (_alerts.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -654,14 +669,14 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'All Clear',
+                    'No Recent Alerts',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade800,
                         ),
                   ),
                   Text(
-                    'No significant natural events detected nearby.',
+                    'No significant alerts detected in your state in the last 24 hours.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.green.shade700,
                     ),
@@ -678,56 +693,79 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Live Events Nearby (500km)',
+          'Recent Alerts (Last 24h)',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.amber.shade800,
+                color: Colors.red.shade800,
               ),
         ),
         const SizedBox(height: 12),
-        ..._events.map((event) => Card(
+        ..._alerts.map((alert) => Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.amber.shade200),
+                side: BorderSide(color: Colors.red.shade200),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Icon(_getEventIcon(event.categories.first), color: Colors.amber.shade800),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            event.title,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8.0,
-                            runSpacing: 4.0,
-                            children: event.categories
-                                .map((category) => Chip(
-                                      label: Text(category),
-                                      backgroundColor: Colors.amber.withOpacity(0.1),
-                                    ))
-                                .toList(),
-                          ),
-                        ],
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AlertsScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Icon(_getAlertIcon(alert.title), color: Colors.red.shade800),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              alert.title,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _formatDate(alert.pubDate),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             )).toList(),
       ],
     );
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      DateTime? date;
+      try {
+        date = HttpDate.parse(dateStr);
+      } catch (_) {
+        date = DateTime.tryParse(dateStr);
+      }
+
+      if (date != null) {
+        return DateFormat('dd-MM-yyyy h:mm a').format(date.toLocal());
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
   }
 
   IconData _getIconData(String iconName) {
@@ -752,22 +790,18 @@ class _EnhancedHomeScreenState extends State<EnhancedHomeScreen> {
     }
   }
 
-  IconData _getEventIcon(String category) {
-    switch (category) {
-      case 'drought': return FontAwesomeIcons.sun;
-      case 'dustAndHaze': return FontAwesomeIcons.smog;
-      case 'earthquakes': return FontAwesomeIcons.houseChimneyCrack;
-      case 'floods': return FontAwesomeIcons.houseFloodWater;
-      case 'landslides': return FontAwesomeIcons.mountain;
-      case 'manmade': return FontAwesomeIcons.industry;
-      case 'seaAndLakeIce': return FontAwesomeIcons.snowflake;
-      case 'severeStorms': return FontAwesomeIcons.cloudBolt;
-      case 'snow': return FontAwesomeIcons.snowflake;
-      case 'tempExtremes': return FontAwesomeIcons.temperatureHigh;
-      case 'volcanoes': return FontAwesomeIcons.volcano;
-      case 'waterColor': return FontAwesomeIcons.water;
-      case 'wildfires': return FontAwesomeIcons.fire;
-      default: return FontAwesomeIcons.triangleExclamation;
+  IconData _getAlertIcon(String title) {
+    final lowerTitle = title.toLowerCase();
+    if (lowerTitle.contains('flood')) {
+      return FontAwesomeIcons.houseFloodWater;
+    } else if (lowerTitle.contains('rain') || lowerTitle.contains('thunderstorm')) {
+      return FontAwesomeIcons.cloudShowersHeavy;
+    } else if (lowerTitle.contains('heat') || lowerTitle.contains('wave')) {
+      return FontAwesomeIcons.temperatureHigh;
+    } else if (lowerTitle.contains('cyclone') || lowerTitle.contains('wind')) {
+      return FontAwesomeIcons.hurricane;
+    } else {
+      return FontAwesomeIcons.triangleExclamation;
     }
   }
 }

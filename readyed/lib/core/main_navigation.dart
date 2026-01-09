@@ -3,7 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../features/home/enhanced_home_screen.dart';
 import '../features/content/all_disasters_screen.dart';
 import '../features/drills/drills_screen.dart';
-import '../features/leaderboard/leaderboard_screen.dart';
+import '../features/alerts/alerts_screen.dart';
 import '../features/profile/profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -20,7 +20,7 @@ class _MainNavigationState extends State<MainNavigation> {
     EnhancedHomeScreen(),
     AllDisastersScreen(),
     DrillsScreen(),
-    LeaderboardScreen(),
+    AlertsScreen(),
     ProfileScreen(),
   ];
 
@@ -54,12 +54,12 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Disasters',
           ),
           BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.userShield, size: 20),
-            label: 'Drills',
+            icon: FaIcon(FontAwesomeIcons.brain, size: 20),
+            label: 'Scenarios',
           ),
           BottomNavigationBarItem(
-            icon: FaIcon(FontAwesomeIcons.trophy, size: 20),
-            label: 'Leaderboard',
+            icon: FaIcon(FontAwesomeIcons.triangleExclamation, size: 20),
+            label: 'Alerts',
           ),
           BottomNavigationBarItem(
             icon: FaIcon(FontAwesomeIcons.user, size: 20),

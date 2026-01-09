@@ -18,6 +18,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _schoolCodeController = TextEditingController();
+  final _teacherAccessController = TextEditingController();
+  String _selectedRole = 'student';
   String? _selectedClass;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -36,11 +38,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _schoolCodeController.dispose();
+    _teacherAccessController.dispose();
     super.dispose();
   }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedRole == 'teacher' && _teacherAccessController.text != 'ADMIN123') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid Teacher Access Code')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -50,7 +60,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        state: 'Unknown', // Will be updated automatically via location service
+        state: 'Unknown',
+        role: _selectedRole,
         schoolCode: _schoolCodeController.text.trim().isEmpty ? null : _schoolCodeController.text.trim(),
         studentClass: _selectedClass,
       );
@@ -64,7 +75,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Account created successfully!',
+                    '${_selectedRole.capitalize()} account created successfully!',
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
@@ -146,6 +157,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 
                 const SizedBox(height: 40),
+
+                // Role Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedRole,
+                  decoration: InputDecoration(
+                    labelText: 'I am a...',
+                    prefixIcon: const Icon(Icons.person_pin_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'student', child: Text('Student')),
+                    DropdownMenuItem(value: 'teacher', child: Text('Teacher')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _selectedRole = value);
+                  },
+                ),
+
+                const SizedBox(height: 16),
                 
                 // Name Field
                 TextFormField(
@@ -203,13 +235,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   keyboardType: TextInputType.text,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
-                    labelText: 'School Code (Optional)',
-                    helperText: 'Enter your school\'s unique code if applicable',
+                    labelText: 'School Code',
+                    helperText: 'Enter your school\'s unique code',
                     prefixIcon: const Icon(Icons.school_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  validator: (value) => (value == null || value.isEmpty) ? 'School code is required' : null,
                 ),
                 
                 const SizedBox(height: 16),
@@ -218,8 +251,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 DropdownButtonFormField<String>(
                   value: _selectedClass,
                   decoration: InputDecoration(
-                    labelText: 'Class (Optional)',
-                    helperText: 'Select your current class',
+                    labelText: _selectedRole == 'student' ? 'Current Class' : 'Assigned Class',
+                    helperText: _selectedRole == 'student' ? 'Select your class' : 'Select class you teach',
                     prefixIcon: const Icon(Icons.class_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -236,8 +269,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       _selectedClass = newValue;
                     });
                   },
+                  validator: (value) => (value == null) ? 'Class is required' : null,
                 ),
                 
+                if (_selectedRole == 'teacher') ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _teacherAccessController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Teacher Access Code',
+                      hintText: 'Enter secret code provided by school',
+                      prefixIcon: const Icon(Icons.verified_user_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (value) => (value == null || value.isEmpty) ? 'Access code required for teachers' : null,
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 
                 // Password Field
@@ -319,48 +370,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 
                 const SizedBox(height: 32),
                 
-                // Benefits
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          FaIcon(
-                            FontAwesomeIcons.gift,
-                            color: Colors.green.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Benefits of Creating Account',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBenefit('Track your progress and scores'),
-                      _buildBenefit('Compete in state and national leaderboards'),
-                      _buildBenefit('Earn achievements and badges'),
-                      _buildBenefit('Auto-detect your location for personalized content'),
-                      _buildBenefit('Sync across devices'),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
                 // Terms Text
                 Text(
                   'By creating an account, you agree to our Terms of Service and Privacy Policy.',
@@ -400,5 +409,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ],
       ),
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

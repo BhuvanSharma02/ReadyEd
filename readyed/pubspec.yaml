@@ -72,6 +72,10 @@ dependencies:
   nearby_connections: ^4.3.0
   flutter_compass: ^0.8.1
   geomag: ^0.2.1
+  webfeed_plus: ^1.0.0
+  fl_chart: ^1.1.1
+  pdf: ^3.11.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

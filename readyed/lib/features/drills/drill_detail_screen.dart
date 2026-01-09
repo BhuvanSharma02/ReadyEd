@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'dart:math';
+import '../../services/auth_service.dart';
 
 class DrillDetailScreen extends StatefulWidget {
   final String drillType;
@@ -11,26 +14,43 @@ class DrillDetailScreen extends StatefulWidget {
 }
 
 class _DrillDetailScreenState extends State<DrillDetailScreen> {
-  int currentStep = 0;
-  int score = 0;
   bool isCompleted = false;
-  List<bool> stepCompletions = [];
+  bool? wasCorrect;
+  String feedbackMessage = '';
+  late Map<String, dynamic> _selectedScenario;
+  late String _drillTitle;
 
   @override
   void initState() {
     super.initState();
-    final drillData = _getDrillData(widget.drillType);
-    stepCompletions = List.filled(drillData['steps'].length, false);
+    _loadNewScenario();
+  }
+
+  void _loadNewScenario() {
+    setState(() {
+      final drillData = _getDrillData(widget.drillType);
+      final scenarios = drillData['scenarios'] as List<Map<String, dynamic>>;
+      _drillTitle = drillData['title'];
+      _selectedScenario = scenarios[Random().nextInt(scenarios.length)];
+      isCompleted = false;
+      wasCorrect = null;
+      feedbackMessage = '';
+    });
+  }
+
+  void _restartScenario() {
+    setState(() {
+      isCompleted = false;
+      wasCorrect = null;
+      feedbackMessage = '';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final drillData = _getDrillData(widget.drillType);
-    final steps = drillData['steps'] as List<Map<String, dynamic>>;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('${drillData['title']} Drill'),
+        title: const Text('Survival Scenario'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -39,554 +59,429 @@ class _DrillDetailScreenState extends State<DrillDetailScreen> {
           if (isCompleted)
             IconButton(
               icon: const Icon(FontAwesomeIcons.rotate),
-              onPressed: _restartDrill,
-              tooltip: 'Restart Drill',
+              onPressed: _loadNewScenario,
+              tooltip: 'New Scenario',
             ),
         ],
       ),
-      body: isCompleted ? _buildCompletionScreen(drillData) : _buildDrillScreen(steps),
-      bottomNavigationBar: !isCompleted ? _buildNavigationBar(steps) : null,
+      body: isCompleted 
+          ? _buildCompletionScreen() 
+          : _buildScenarioScreen(),
     );
   }
 
-  Widget _buildDrillScreen(List<Map<String, dynamic>> steps) {
-    final currentStepData = steps[currentStep];
-    
+  Widget _buildScenarioScreen() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Progress indicator
-          _buildProgressIndicator(steps.length),
-          const SizedBox(height: 24),
-
-          // Step content
+          // Scenario Card
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: currentStepData['color'].withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: currentStepData['color'].withOpacity(0.3)),
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.blue.shade200),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: currentStepData['color'],
+                        color: Colors.blue.shade700,
                         shape: BoxShape.circle,
                       ),
-                      child: FaIcon(
-                        currentStepData['icon'],
+                      child: const FaIcon(
+                        FontAwesomeIcons.eye,
                         color: Colors.white,
-                        size: 24,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Step ${currentStep + 1}',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: currentStepData['color'],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            currentStepData['title'],
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: currentStepData['color'],
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        'The Situation',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(
-                  currentStepData['description'],
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                if (currentStepData['scenario'] != null) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(FontAwesomeIcons.lightbulb, color: Colors.blue.shade700, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Scenario',
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          currentStepData['scenario'],
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
+                  _selectedScenario['scenario'],
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    height: 1.4,
+                    color: Colors.blue.shade900,
                   ),
-                ],
+                ),
               ],
             ),
           ),
           
-          // Interactive choices (if any)
-          if (currentStepData['choices'] != null) ...[
-            const SizedBox(height: 24),
-            Text(
-              'What should you do?',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+          const SizedBox(height: 32),
+          Text(
+            'What would you do?',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
             ),
-            const SizedBox(height: 16),
-            ...(currentStepData['choices'] as List<Map<String, dynamic>>).asMap().entries.map((entry) {
-              final index = entry.key;
-              final choice = entry.value;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Card(
-                  child: InkWell(
-                    onTap: () => _handleChoice(choice, index),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: choice['isCorrect'] ? Colors.green.shade100 : Colors.grey.shade100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              String.fromCharCode(65 + index), // A, B, C, etc.
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: choice['isCorrect'] ? Colors.green.shade700 : Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              choice['text'],
-                              style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 16),
+
+          // Choices
+          ...(_selectedScenario['choices'] as List<Map<String, dynamic>>).map((choice) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: InkWell(
+                  onTap: () => _handleChoice(choice),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.circle,
+                          color: Colors.grey.shade400,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            choice['text'],
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward_ios, 
+                             size: 16, 
+                             color: Colors.grey.shade400),
+                      ],
                     ),
                   ),
                 ),
-              );
-            }).toList(),
-          ],
-
-          // Tips section
-          if (currentStepData['tips'] != null) ...[
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.shade200),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(FontAwesomeIcons.lightbulb, color: Colors.amber.shade700, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Pro Tips',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...(currentStepData['tips'] as List<String>).map((tip) => 
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('• ', style: TextStyle(color: Colors.amber.shade700)),
-                          Expanded(
-                            child: Text(
-                              tip,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.amber.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).toList(),
-                ],
-              ),
-            ),
-          ],
+            );
+          }).toList(),
         ],
       ),
     );
   }
 
-  Widget _buildProgressIndicator(int totalSteps) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Progress',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${currentStep + 1} of $totalSteps',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: (currentStep + 1) / totalSteps,
-          backgroundColor: Colors.grey.shade300,
-          valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
-        ),
-      ],
-    );
-  }
+  Widget _buildCompletionScreen() {
+    final color = wasCorrect! ? Colors.green : Colors.red;
+    final icon = wasCorrect! ? FontAwesomeIcons.solidCircleCheck : FontAwesomeIcons.circleXmark;
+    final title = wasCorrect! ? 'You Survived!' : 'Scenario Failed';
 
-  Widget _buildNavigationBar(List<Map<String, dynamic>> steps) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          ElevatedButton(
-            onPressed: currentStep > 0 ? _previousStep : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey.shade300,
-              foregroundColor: Colors.grey.shade700,
-            ),
-            child: const Text('Previous'),
-          ),
-          ElevatedButton(
-            onPressed: _nextStep,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(currentStep == steps.length - 1 ? 'Complete' : 'Next'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompletionScreen(Map<String, dynamic> drillData) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.green.shade100,
+              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: FaIcon(
-              FontAwesomeIcons.trophy,
-              color: Colors.green.shade700,
+              icon,
+              color: color,
               size: 64,
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'Drill Completed!',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            title,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.green.shade700,
+              color: color,
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Great job! You\'ve successfully completed the ${drillData['title']} drill.',
-            style: Theme.of(context).textTheme.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          
-          // Score display
+          if (wasCorrect!) ...[
+            const SizedBox(height: 8),
+            Text(
+              '+20 Points',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blue.shade200),
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your Score',
+                  'Analysis',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
-                  '$score / ${stepCompletions.length}',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-                Text(
-                  _getScoreMessage(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.blue.shade600,
+                  feedbackMessage,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    height: 1.5,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 32),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _restartDrill,
-                  icon: const FaIcon(FontAwesomeIcons.rotate),
-                  label: const Text('Try Again'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
+          
+          if (!wasCorrect!)
+            ElevatedButton.icon(
+              onPressed: _restartScenario,
+              icon: const FaIcon(FontAwesomeIcons.rotate),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const FaIcon(FontAwesomeIcons.house),
-                  label: const Text('Back Home'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: _loadNewScenario,
+              icon: const FaIcon(FontAwesomeIcons.dice),
+              label: const Text('New Scenario'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const FaIcon(FontAwesomeIcons.house),
+              label: const Text('Back to Menu'),
+            ),
         ],
       ),
     );
   }
 
-  void _handleChoice(Map<String, dynamic> choice, int index) {
-    if (choice['isCorrect']) {
-      score++;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Correct! ${choice['feedback']}'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 1),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Not quite. ${choice['feedback']}'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-    stepCompletions[currentStep] = true;
-    
-    // Auto advance after a short delay
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) _nextStep();
-    });
-  }
-
-  void _nextStep() {
-    final drillData = _getDrillData(widget.drillType);
-    final steps = drillData['steps'] as List<Map<String, dynamic>>;
-    
-    if (currentStep < steps.length - 1) {
-      setState(() {
-        currentStep++;
-      });
-    } else {
-      setState(() {
-        isCompleted = true;
-      });
-    }
-  }
-
-  void _previousStep() {
-    if (currentStep > 0) {
-      setState(() {
-        currentStep--;
-      });
-    }
-  }
-
-  void _restartDrill() {
+  void _handleChoice(Map<String, dynamic> choice) {
     setState(() {
-      currentStep = 0;
-      score = 0;
-      isCompleted = false;
-      final drillData = _getDrillData(widget.drillType);
-      stepCompletions = List.filled(drillData['steps'].length, false);
+      isCompleted = true;
+      wasCorrect = choice['isCorrect'];
+      feedbackMessage = choice['feedback'];
     });
-  }
 
-  String _getScoreMessage() {
-    final percentage = (score / stepCompletions.length * 100).round();
-    if (percentage >= 80) return 'Excellent work!';
-    if (percentage >= 60) return 'Good job!';
-    return 'Keep practicing!';
+    if (wasCorrect!) {
+      Provider.of<AuthService>(context, listen: false).updateScore(20);
+    }
   }
 
   Map<String, dynamic> _getDrillData(String type) {
     final data = {
       'earthquake': {
         'title': 'Earthquake',
-        'steps': [
+        'scenarios': [
           {
-            'title': 'Drop, Cover, and Hold On',
-            'description': 'The most important earthquake safety rule is DROP, COVER, and HOLD ON immediately when you feel shaking.',
-            'scenario': 'You\'re in your classroom when the ground starts shaking. What do you do first?',
-            'icon': FontAwesomeIcons.handHolding,
-            'color': Colors.red,
+            'scenario': 'It\'s 2:00 AM. You are fast asleep in your bed on the second floor. Suddenly, the room starts shaking violently. Books fall off the shelf, and you hear glass breaking. What is your immediate reaction?',
             'choices': [
               {
                 'text': 'Run outside immediately',
                 'isCorrect': false,
-                'feedback': 'Running during shaking can cause you to fall and get hurt.'
+                'feedback': 'Incorrect. Running during strong shaking is extremely dangerous. The ground motion can cause you to fall, and you risk being hit by falling debris, glass, or collapsing walls. Most injuries happen when people try to move.'
               },
               {
-                'text': 'Drop to hands and knees, take cover under a desk',
-                'isCorrect': true,
-                'feedback': 'Perfect! This protects you from falling objects.'
-              },
-              {
-                'text': 'Stand in a doorway',
+                'text': 'Stand in the doorway',
                 'isCorrect': false,
-                'feedback': 'Doorways are not safer than other parts of the building.'
+                'feedback': 'Incorrect. In modern homes, doorways are no stronger than any other part of the house. You are also exposed to falling objects and swinging doors.'
+              },
+              {
+                'text': 'Stay in bed, cover head with pillow',
+                'isCorrect': true,
+                'feedback': 'Correct! If you are in bed, stay there. Hold on and protect your head with a pillow. You are less likely to be injured by falling objects than if you try to move.'
               }
-            ],
-            'tips': [
-              'Get under a desk or table if available',
-              'If no table, cover your head and neck with your arms',
-              'Don\'t run during shaking - you might fall'
             ]
           },
           {
-            'title': 'Stay Safe During Shaking',
-            'description': 'While the ground is shaking, stay where you are and protect yourself until the shaking stops.',
-            'icon': FontAwesomeIcons.shield,
-            'color': Colors.orange,
-            'tips': [
-              'Hold on to your shelter and protect your head',
-              'Stay away from windows and heavy objects',
-              'Don\'t try to move to another room'
-            ]
-          },
-          {
-            'title': 'After the Shaking Stops',
-            'description': 'Once the earthquake stops, carefully check for injuries and hazards before moving.',
-            'icon': FontAwesomeIcons.eyeSlash,
-            'color': Colors.blue,
-            'scenario': 'The shaking has stopped. What should you check for first?',
+            'scenario': 'You are driving on a highway when you feel the steering wheel shaking violently. You realize it is an earthquake.',
             'choices': [
               {
-                'text': 'Check if you or others are injured',
-                'isCorrect': true,
-                'feedback': 'Correct! Safety of people comes first.'
+                'text': 'Stop immediately, right where you are',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Stopping suddenly in the middle of the road or under a bridge/overpass is dangerous.'
               },
               {
-                'text': 'Check your phone for messages',
+                'text': 'Pull over to the side, away from bridges/poles, and stay in the car',
+                'isCorrect': true,
+                'feedback': 'Correct! Pull over safely to a clear area. Stay inside the car until the shaking stops; the car provides protection from falling debris.'
+              },
+              {
+                'text': 'Drive faster to get home',
                 'isCorrect': false,
-                'feedback': 'People\'s safety is more important than messages.'
+                'feedback': 'Incorrect. Driving during an earthquake is dangerous due to potential road damage and loss of vehicle control.'
               }
-            ],
-            'tips': [
-              'Look for injuries and provide first aid if needed',
-              'Check for hazards like gas leaks or electrical damage',
-              'Be prepared for aftershocks'
             ]
           }
         ]
       },
-      // Add more drill types as needed...
+      'fire': {
+        'title': 'Fire',
+        'scenarios': [
+          {
+            'scenario': 'You are in a crowded movie theater when the fire alarm goes off and you smell smoke. The main exit is packed with panicking people.',
+            'choices': [
+              {
+                'text': 'Push through the crowd to the main exit',
+                'isCorrect': false,
+                'feedback': 'Incorrect. You risk being crushed or trapped in the bottleneck. Panic causes delays and injuries.'
+              },
+              {
+                'text': 'Look for a secondary exit or kitchen staff door',
+                'isCorrect': true,
+                'feedback': 'Correct! Commercial buildings always have multiple exits. Finding a less crowded alternative path is the safest choice.'
+              },
+              {
+                'text': 'Hide under the seats',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Smoke rises, but heat and toxic gases can still reach you. You need to evacuate, not hide.'
+              }
+            ]
+          },
+          {
+            'scenario': 'You are cooking in the kitchen and a pan of oil catches fire. The flames are small but growing.',
+            'choices': [
+              {
+                'text': 'Pour water on it',
+                'isCorrect': false,
+                'feedback': 'Incorrect! Water will make a grease fire explode violently.'
+              },
+              {
+                'text': 'Cover it with a metal lid',
+                'isCorrect': true,
+                'feedback': 'Correct! Sliding a lid over the pan cuts off the oxygen and smothers the fire.'
+              },
+              {
+                'text': 'Carry the pan outside',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Moving a burning pan is extremely dangerous; you could spill burning oil on yourself or spread the fire.'
+              }
+            ]
+          }
+        ]
+      },
+      'flood': {
+        'title': 'Flood',
+        'scenarios': [
+          {
+            'scenario': 'You are driving home during a heavy storm. You come across a dip in the road that is completely flooded with moving water. You are in a hurry.',
+            'choices': [
+              {
+                'text': 'Drive through it quickly',
+                'isCorrect': false,
+                'feedback': 'Incorrect. "Turn Around, Don\'t Drown." Just 12 inches of moving water can carry away a small car.'
+              },
+              {
+                'text': 'Get out and walk through it',
+                'isCorrect': false,
+                'feedback': 'Incorrect. 6 inches of moving water can knock you off your feet. The water may also be contaminated or hide hazards.'
+              },
+              {
+                'text': 'Turn around and find another route',
+                'isCorrect': true,
+                'feedback': 'Correct! Never attempt to cross a flooded road in a vehicle or on foot. The depth and speed of water are deceptive.'
+              }
+            ]
+          },
+          {
+            'scenario': 'You are trapped in your car and water is rising rapidly around it. The water pressure is preventing you from opening the door.',
+            'choices': [
+              {
+                'text': 'Wait for the water to fill the car to equalize pressure',
+                'isCorrect': false,
+                'feedback': 'Incorrect. This is a last resort and very dangerous as you might run out of air.'
+              },
+              {
+                'text': 'Break the side window and climb out',
+                'isCorrect': true,
+                'feedback': 'Correct! Use a heavy object or a window breaker to shatter a side window (not the windshield) and escape immediately.'
+              },
+              {
+                'text': 'Call 112 and wait',
+                'isCorrect': false,
+                'feedback': 'Incorrect. In a rapidly sinking vehicle, you must escape first, then call for help.'
+              }
+            ]
+          }
+        ]
+      },
+      'hurricane': {
+        'title': 'Hurricane',
+        'scenarios': [
+          {
+            'scenario': 'A major hurricane has just made landfall. The wind is howling outside, and suddenly your living room window shatters from debris.',
+            'choices': [
+              {
+                'text': 'Run to the window to tape it up',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Approaching a broken window during high winds exposes you to glass shards and flying debris.'
+              },
+              {
+                'text': 'Go to a small interior room without windows',
+                'isCorrect': true,
+                'feedback': 'Correct! Put as many walls between you and the outside as possible. A closet, hallway, or bathroom is safest.'
+              },
+              {
+                'text': 'Run outside to the car',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Going outside during a hurricane is extremely dangerous due to flying debris and high winds.'
+              }
+            ]
+          },
+          {
+            'scenario': 'The wind has suddenly stopped and the sun is coming out. You think the storm is over.',
+            'choices': [
+              {
+                'text': 'Go outside to inspect damage',
+                'isCorrect': false,
+                'feedback': 'Incorrect. You might be in the "eye" of the storm. The winds will return violently from the opposite direction soon.'
+              },
+              {
+                'text': 'Stay inside and wait for official all-clear',
+                'isCorrect': true,
+                'feedback': 'Correct! The calm eye is deceptive. Stay sheltered until authorities confirm the storm has passed.'
+              },
+              {
+                'text': 'Open windows to let air in',
+                'isCorrect': false,
+                'feedback': 'Incorrect. Opening windows can pressurize the house and cause the roof to blow off when winds return.'
+              }
+            ]
+          }
+        ]
+      },
     };
 
     return data[type] ?? {
-      'title': 'Emergency',
-      'steps': [
+      'title': 'Scenario',
+      'scenarios': [
         {
-          'title': 'Stay Calm',
-          'description': 'The first step in any emergency is to stay calm and think clearly.',
-          'icon': FontAwesomeIcons.heart,
-          'color': Colors.blue,
+          'scenario': 'Scenario not found.',
+          'choices': []
         }
       ]
     };

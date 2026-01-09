@@ -268,7 +268,7 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'In case of real emergency, call 911',
+                            'In case of real emergency, call 112',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: Colors.red.shade600,
                             ),

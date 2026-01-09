@@ -397,7 +397,7 @@ class _GuidelinesScreenState extends State<GuidelinesScreen> with SingleTickerPr
             ],
           ),
           const SizedBox(height: 16),
-          _buildContactRow('Emergency Services', '911'),
+          _buildContactRow('Emergency Services', '112'),
           _buildContactRow('Poison Control', '1-800-222-1222'),
           _buildContactRow('Red Cross', '1-800-733-2767'),
           const SizedBox(height: 12),

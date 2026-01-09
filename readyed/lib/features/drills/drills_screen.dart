@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart';
+// import 'package:go_router/go_router.dart';
 import '../../widgets/disaster_category_card.dart';
+import 'drill_detail_screen.dart';
 
 class DrillsScreen extends StatelessWidget {
   const DrillsScreen({super.key});
@@ -10,11 +11,7 @@ class DrillsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Virtual Drills'),
-        // leading: IconButton(
-        //   icon: const Icon(Icons.arrow_back),
-        //   onPressed: () => context.pop(),
-        // ),
+        title: const Text('Survival Scenarios'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -32,7 +29,7 @@ class DrillsScreen extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    FontAwesomeIcons.userShield,
+                    FontAwesomeIcons.brain, // Changed icon to brain/decision making
                     color: Colors.green.shade700,
                     size: 32,
                   ),
@@ -42,7 +39,7 @@ class DrillsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Practice Emergency Drills',
+                          'Test Your Decision Making',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green.shade700,
@@ -50,7 +47,7 @@ class DrillsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Practice makes perfect! Learn emergency procedures through interactive simulations.',
+                          'Face realistic emergency situations and make the right choices to survive.',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.green.shade600,
                           ),
@@ -63,7 +60,7 @@ class DrillsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             
-            // Drill Instructions
+            // Instructions
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -93,7 +90,7 @@ class DrillsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '1. Choose a disaster type to practice\n2. Follow step-by-step instructions\n3. Make choices in simulated scenarios\n4. Get feedback and learn safety tips',
+                    '1. Choose a scenario\n2. Read the situation\n3. Make a critical decision\n4. See if you survived and learn why',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.blue.shade600,
                     ),
@@ -103,9 +100,9 @@ class DrillsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             
-            // Drill Categories
+            // Categories
             Text(
-              'Choose Your Drill',
+              'Choose a Scenario',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.primary,
@@ -122,79 +119,53 @@ class DrillsScreen extends StatelessWidget {
               childAspectRatio: 1.0,
               children: [
                 DisasterCategoryCard(
-                  title: 'Earthquake Drill',
+                  title: 'Earthquake',
                   icon: FontAwesomeIcons.houseChimneyCrack,
                   color: Colors.brown.shade600,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Earthquake drill coming soon!'),
-                        duration: Duration(seconds: 1),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DrillDetailScreen(drillType: 'earthquake'),
                       ),
                     );
                   },
                 ),
                 DisasterCategoryCard(
-                  title: 'Fire Evacuation',
+                  title: 'Fire',
                   icon: FontAwesomeIcons.fire,
                   color: Colors.red.shade600,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fire evacuation drill coming soon!'),
-                        duration: Duration(seconds: 1),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DrillDetailScreen(drillType: 'fire'),
                       ),
                     );
                   },
                 ),
                 DisasterCategoryCard(
-                  title: 'Flood Safety',
+                  title: 'Flood',
                   icon: FontAwesomeIcons.houseFloodWater,
                   color: Colors.blue.shade700,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Flood safety drill coming soon!'),
-                        duration: Duration(seconds: 1),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DrillDetailScreen(drillType: 'flood'),
                       ),
                     );
                   },
                 ),
                 DisasterCategoryCard(
-                  title: 'Hurricane Prep',
+                  title: 'Hurricane',
                   icon: FontAwesomeIcons.hurricane,
                   color: Colors.indigo.shade600,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Hurricane prep drill coming soon!'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-                DisasterCategoryCard(
-                  title: 'Tornado Safety',
-                  icon: FontAwesomeIcons.tornado,
-                  color: Colors.grey.shade700,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Tornado safety drill coming soon!'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-                DisasterCategoryCard(
-                  title: 'Winter Storm',
-                  icon: FontAwesomeIcons.snowflake,
-                  color: Colors.lightBlue.shade600,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Winter storm drill coming soon!'),
-                        duration: Duration(seconds: 1),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DrillDetailScreen(drillType: 'hurricane'),
                       ),
                     );
                   },
@@ -205,7 +176,7 @@ class DrillsScreen extends StatelessWidget {
             
             // Benefits section
             Text(
-              'Why Practice Drills?',
+              'Why Scenario Training?',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.primary,
@@ -213,18 +184,17 @@ class DrillsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             
-            ...['Build muscle memory for emergency actions',
-                'Learn proper safety procedures',
-                'Reduce panic during real emergencies',
-                'Practice with family and friends',
-                'Gain confidence in emergency situations'].map((benefit) => 
+            ...['Improve critical thinking under pressure',
+                'Learn to identify safe vs dangerous options',
+                'Understand the "why" behind safety rules',
+                'Prepare mentally for real emergencies'].map((benefit) => 
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
                   children: [
                     Icon(
-                      FontAwesomeIcons.solidCircleCheck,
-                      color: Colors.green.shade600,
+                      FontAwesomeIcons.lightbulb,
+                      color: Colors.amber.shade700,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -240,35 +210,6 @@ class DrillsScreen extends StatelessWidget {
             ).toList(),
             
             const SizedBox(height: 24),
-            
-            // Safety reminder
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    FontAwesomeIcons.triangleExclamation,
-                    color: Colors.orange.shade700,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Remember: These are practice drills. Always follow official emergency instructions during real disasters.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.orange.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

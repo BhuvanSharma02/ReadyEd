@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:geomag/geomag.dart'; // Correct import for geomag
 
 class StudentCompassScreen extends StatefulWidget {
   final String studentName;
@@ -22,11 +21,10 @@ class StudentCompassScreen extends StatefulWidget {
 }
 
 class _StudentCompassScreenState extends State<StudentCompassScreen> {
-  double? _heading; // Magnetic Heading
-  double? _bearing; // True North Bearing to student
+  double? _heading;
+  double _bearing = 0;
   double? _distance;
   Position? _currentPosition;
-  double _declination = 0.0; // Magnetic Declination
 
   @override
   void initState() {
@@ -45,28 +43,15 @@ class _StudentCompassScreenState extends State<StudentCompassScreen> {
     });
   }
 
-  void _startLocationUpdates() async {
-    // Try to get last known position immediately for quick start
-    try {
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null && mounted) {
-        _updateCalculations(lastKnown);
-        _updateMagneticDeclination(lastKnown);
-      }
-    } catch (e) {
-      print('Error getting last known position: $e');
-    }
-
-    // Start the stream
+  void _startLocationUpdates() {
     Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 2, // Update every 2 meters
+        distanceFilter: 2, 
       ),
     ).listen((Position position) {
       if (mounted) {
         _updateCalculations(position);
-        _updateMagneticDeclination(position); // Update declination
       }
     });
   }
@@ -93,33 +78,21 @@ class _StudentCompassScreenState extends State<StudentCompassScreen> {
     });
   }
 
-  void _updateMagneticDeclination(Position position) {
-    final geomag = GeoMag();
-    final result = geomag.calculate(
-      position.latitude,
-      position.longitude,
-      position.altitude * 3.28084, // Convert meters to feet
-      DateTime.now(),
-    );
-    setState(() {
-      _declination = result.dec;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Calculate the rotation needed for the arrow
-    // True Heading = Magnetic Heading + Declination
-    // Rotation = Bearing (True North) - True Heading
-    
-    double rotation = 0;
-    if (_heading != null && _bearing != null) {
-      double trueHeading = (_heading! + _declination) % 360; // Adjust for declination
-      rotation = _bearing! - trueHeading;
-      
-      // Normalize to 0-360
-      if (rotation < 0) rotation += 360;
+    // 1. Calculate raw target rotation (Bearing relative to North - Phone Heading)
+    double targetRotation = 0;
+    if (_heading != null) {
+      targetRotation = _bearing - _heading!;
     }
+    
+    // Normalize to 0-360
+    targetRotation = (targetRotation + 360) % 360;
+
+    // 2. Logic to hide arrow if too close or GPS too weak
+    bool isTooClose = _distance != null && _distance! < 5.0; // Less than 5 meters
+    bool isGpsWeak = _currentPosition != null && _currentPosition!.accuracy > 20.0;
+    bool showArrow = !isTooClose; 
 
     return Scaffold(
       backgroundColor: Colors.grey.shade900,
@@ -138,22 +111,23 @@ class _StudentCompassScreenState extends State<StudentCompassScreen> {
               _distance != null 
                   ? '${_distance!.toStringAsFixed(1)} m' 
                   : 'Calculating...',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isTooClose ? Colors.greenAccent : Colors.white,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'DISTANCE',
+            Text(
+              isTooClose ? 'YOU ARE HERE' : 'DISTANCE',
               style: TextStyle(
-                color: Colors.grey,
+                color: isTooClose ? Colors.greenAccent : Colors.grey,
                 letterSpacing: 2,
+                fontWeight: FontWeight.bold,
               ),
             ),
             
-            const SizedBox(height: 60),
+            const SizedBox(height: 40),
 
             // Compass / Direction Arrow
             Stack(
@@ -165,13 +139,13 @@ class _StudentCompassScreenState extends State<StudentCompassScreen> {
                   height: 300,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24, width: 2),
+                    border: Border.all(color: Colors.white12, width: 2),
                     gradient: RadialGradient(
-                      colors: [Colors.blue.shade900.withOpacity(0.2), Colors.transparent],
+                      colors: [Colors.blue.shade900.withOpacity(0.1), Colors.transparent],
                     ),
                   ),
                   child: Transform.rotate(
-                    angle: -((_heading ?? 0) + _declination) * (math.pi / 180), // Rotate rose by true heading
+                    angle: -(_heading ?? 0) * (math.pi / 180),
                     child: const Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -182,61 +156,68 @@ class _StudentCompassScreenState extends State<StudentCompassScreen> {
                   ),
                 ),
                 
-                // Direction Arrow
-                if (_heading != null && _bearing != null)
-                  Transform.rotate(
-                    angle: rotation * (math.pi / 180),
-                    child: const Icon(
-                      Icons.navigation, // Points UP by default, like a standard navigation arrow
-                      size: 100,
-                      color: Color(0xFF2E7D8F),
-                    ),
+                // Direction Arrow (Animated)
+                if (showArrow)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: targetRotation),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) {
+                      return Transform.rotate(
+                        angle: value * (math.pi / 180),
+                        child: const Icon(
+                          FontAwesomeIcons.locationArrow,
+                          size: 100,
+                          color: Color(0xFF2E7D8F),
+                        ),
+                      );
+                    },
+                  )
+                else if (isTooClose)
+                  const Icon(
+                    Icons.check_circle,
+                    size: 100,
+                    color: Colors.greenAccent,
                   )
                 else
                   const CircularProgressIndicator(),
               ],
             ),
             
-            const SizedBox(height: 40),
+            const SizedBox(height: 40), 
             
-            // Debug Info (Optional, helpful for verification)
-            if (_heading != null && _bearing != null)
-              Text(
-                'Heading (Mag): ${_heading!.toStringAsFixed(0)}° | Declination: ${_declination.toStringAsFixed(1)}° | Bearing (True): ${_bearing!.toStringAsFixed(0)}°',
-                style: const TextStyle(color: Colors.white24, fontSize: 12),
+            // Warnings / Status
+            if (isGpsWeak)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                margin: const EdgeInsets.only(top: 20),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Weak GPS (${_currentPosition?.accuracy.toStringAsFixed(0)}m accuracy)\nDirection may be incorrect.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.orangeAccent),
+                    ),
+                  ],
+                ),
               ),
-            
-            const SizedBox(height: 20),
-            
-            // Status Info
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _currentPosition != null && _currentPosition!.accuracy < 20 
-                        ? Icons.gps_fixed 
-                        : Icons.gps_not_fixed,
-                    color: _currentPosition != null && _currentPosition!.accuracy < 20 
-                        ? Colors.green 
-                        : Colors.orange,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    _currentPosition != null && _currentPosition!.accuracy < 20
-                        ? 'GPS Signal: Good'
-                        : 'GPS Signal: Weak (${_currentPosition?.accuracy.toStringAsFixed(0)}m)',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
+              
+              if (!isGpsWeak && !isTooClose)
+               const Padding(
+                 padding: EdgeInsets.all(16.0),
+                 child: Text(
+                   "Keep phone flat and follow the arrow",
+                   style: TextStyle(color: Colors.white38),
+                 ),
+               ),
           ],
         ),
       ),

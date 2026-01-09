@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../features/auth/login_screen.dart';
 import 'main_navigation.dart';
+import '../features/teacher/teacher_dashboard_screen.dart';
+import '../models/user_model.dart';
 
 class AppWrapper extends StatelessWidget {
   const AppWrapper({super.key});
@@ -23,13 +24,37 @@ class AppWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
-          // User is signed in
-          return const MainNavigation();
-        } else {
-          // User is not signed in
+        final user = snapshot.data;
+
+        if (user == null) {
           return const LoginScreen();
         }
+
+        // User is authenticated, now check role
+        return FutureBuilder<UserModel?>(
+          future: authService.getUserData(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final userData = userSnapshot.data;
+            if (userData == null) {
+              // Fallback to Student view if user data is not yet available
+              return const MainNavigation();
+            }
+
+            if (userData.role == 'teacher') {
+              return const TeacherDashboardScreen();
+            } else {
+              return const MainNavigation();
+            }
+          },
+        );
       },
     );
   }

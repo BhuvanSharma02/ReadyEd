@@ -67,237 +67,477 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  // Sign up with email and password
-  Future<dynamic> signUpWithEmailAndPassword({
-    required String email,
-    required String password,
-    required String name,
-    required String state,
-    String? schoolCode,
-    String? studentClass,
-  }) async {
-    _initializeFirebaseIfNeeded();
-    
-    if (_isFirebaseAvailable) {
-      return _firebaseSignUp(email, password, name, state, schoolCode, studentClass);
-    } else {
-      return _mockSignUp(email, password, name, state, schoolCode, studentClass);
-    }
-  }
+    // Sign up with email and password
 
-  // Sign in with email and password
-  Future<dynamic> signInWithEmailAndPassword({
-    required String email,
-    required String password,
-  }) async {
-    _initializeFirebaseIfNeeded();
-    
-    if (_isFirebaseAvailable) {
-      return _firebaseSignIn(email, password);
-    } else {
-      return _mockSignIn(email, password);
-    }
-  }
+    Future<dynamic> signUpWithEmailAndPassword({
 
-  // Sign in anonymously
-  Future<dynamic> signInAnonymously() async {
-    _initializeFirebaseIfNeeded();
-    
-    if (_isFirebaseAvailable) {
-      return _firebaseSignInAnonymously();
-    } else {
-      return _mockSignInAnonymously();
-    }
-  }
+      required String email,
 
-  // Sign out
-  Future<void> signOut() async {
-    _initializeFirebaseIfNeeded();
-    
-    if (_isFirebaseAvailable) {
-      await _auth!.signOut();
-    } else {
-      _mockCurrentUser = null;
-      _authStateController.add(null);
-    }
-  }
+      required String password,
 
-  // Firebase implementations
-  Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state, String? schoolCode, String? studentClass) async {
-    try {
-      UserCredential result = await _auth!.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      required String name,
 
-      User? user = result.user;
-      if (user != null) {
-        await user.updateDisplayName(name);
-        await _createFirebaseUserDocument(user, name, state, schoolCode, studentClass);
+      required String state,
+
+      required String role,
+
+      String? schoolCode,
+
+      String? studentClass,
+
+    }) async {
+
+      _initializeFirebaseIfNeeded();
+
+      
+
+      if (_isFirebaseAvailable) {
+
+        return _firebaseSignUp(email, password, name, state, role, schoolCode, studentClass);
+
+      } else {
+
+        return _mockSignUp(email, password, name, state, role, schoolCode, studentClass);
+
       }
 
-      return result;
-    } on FirebaseAuthException catch (e) {
-      print('Firebase sign up error: ${e.code}');
-      throw _handleAuthException(e);
     }
-  }
 
-  Future<UserCredential?> _firebaseSignIn(String email, String password) async {
-    try {
-      UserCredential result = await _auth!.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result;
-    } on FirebaseAuthException catch (e) {
-      print('Firebase sign in error: ${e.code}');
-      throw _handleAuthException(e);
-    }
-  }
+  
 
-  Future<UserCredential?> _firebaseSignInAnonymously() async {
-    try {
-      UserCredential result = await _auth!.signInAnonymously();
-      User? user = result.user;
-      if (user != null) {
-        await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown','00', '1');
+    // Sign in with email and password
+
+    Future<dynamic> signInWithEmailAndPassword({
+
+      required String email,
+
+      required String password,
+
+    }) async {
+
+      _initializeFirebaseIfNeeded();
+
+      
+
+      if (_isFirebaseAvailable) {
+
+        return _firebaseSignIn(email, password);
+
+      } else {
+
+        return _mockSignIn(email, password);
+
       }
-      return result;
-    } on FirebaseAuthException catch (e) {
-      print('Firebase anonymous sign in error: ${e.code}');
-      throw _handleAuthException(e);
-    } catch (e) {
-      print('Firebase anonymous sign in error: $e');
-      throw Exception('Failed to sign in as guest. Please try again.');
-    }
-  }
 
-  Future<void> _createFirebaseUserDocument(User user, String name, String state, String? schoolCode, String? studentClass) async {
-    try {
-      await _firestore!.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email ?? '',
-        'name': name,
-        'state': state,
-        'schoolCode': schoolCode,
-        'studentClass': studentClass,
-        'createdAt': FieldValue.serverTimestamp(),
-        'totalScore': 0,
-        'completedDrills': [],
-        'achievements': [],
-        'profileImageUrl': '',
-        'isAnonymous': user.isAnonymous,
-      });
-    } catch (e) {
-      print('Error creating Firebase user document: $e');
-      rethrow;
     }
-  }
 
-  // Mock implementations
-  Future<MockUser?> _mockSignUp(String email, String password, String name, String state, String? schoolCode, String? studentClass) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 500));
+  
+
+    // Sign in anonymously
+
+    Future<dynamic> signInAnonymously() async {
+
+      _initializeFirebaseIfNeeded();
+
       
-      final mockUser = MockUser(
-        uid: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        email: email,
-        displayName: name,
-      );
-      
-      _mockUserData[mockUser.uid] = UserModel(
-        uid: mockUser.uid,
-        email: email,
-        name: name,
-        state: state,
-        schoolCode: schoolCode,
-        studentClass: studentClass,
-        totalScore: 0,
-        completedDrills: [],
-        achievements: [],
-        profileImageUrl: '',
-        isAnonymous: false,
-        createdAt: DateTime.now(),
-      );
-      
-      _mockCurrentUser = mockUser;
-      _authStateController.add(mockUser);
-      
-      return mockUser;
-    } catch (e) {
-      print('Mock sign up error: $e');
-      rethrow;
+
+      if (_isFirebaseAvailable) {
+
+        return _firebaseSignInAnonymously();
+
+      } else {
+
+        return _mockSignInAnonymously();
+
+      }
+
     }
-  }
 
-  Future<MockUser?> _mockSignIn(String email, String password) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 500));
+  
+
+    // Sign out
+
+    Future<void> signOut() async {
+
+      _initializeFirebaseIfNeeded();
+
       
-      final mockUser = MockUser(
-        uid: 'existing_user_${email.hashCode}',
-        email: email,
-        displayName: 'Test User',
-      );
-      
-      if (!_mockUserData.containsKey(mockUser.uid)) {
-        _mockUserData[mockUser.uid] = UserModel(
-          uid: mockUser.uid,
+
+      if (_isFirebaseAvailable) {
+
+        await _auth!.signOut();
+
+      } else {
+
+        _mockCurrentUser = null;
+
+        _authStateController.add(null);
+
+      }
+
+    }
+
+  
+
+    // Firebase implementations
+
+    Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state, String role, String? schoolCode, String? studentClass) async {
+
+      try {
+
+        UserCredential result = await _auth!.createUserWithEmailAndPassword(
+
           email: email,
-          name: 'Test User',
-          state: 'California',
-          totalScore: 150,
-          completedDrills: [],
-          achievements: [],
-          profileImageUrl: '',
-          isAnonymous: false,
-          createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        );
-      }
-      
-      _mockCurrentUser = mockUser;
-      _authStateController.add(mockUser);
-      
-      return mockUser;
-    } catch (e) {
-      print('Mock sign in error: $e');
-      rethrow;
-    }
-  }
 
-  Future<MockUser?> _mockSignInAnonymously() async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 300));
-      
-      final mockUser = MockUser(
-        uid: 'anonymous_${DateTime.now().millisecondsSinceEpoch}',
-        displayName: 'Anonymous User',
-        isAnonymous: true,
-      );
-      
-      _mockUserData[mockUser.uid] = UserModel(
-        uid: mockUser.uid,
-        email: '',
-        name: 'Anonymous User',
-        state: 'Unknown',
-        totalScore: 0,
-        completedDrills: [],
-        achievements: [],
-        profileImageUrl: '',
-        isAnonymous: true,
-        createdAt: DateTime.now(),
-      );
-      
-      _mockCurrentUser = mockUser;
-      _authStateController.add(mockUser);
-      
-      return mockUser;
-    } catch (e) {
-      print('Mock anonymous sign in error: $e');
-      rethrow;
+          password: password,
+
+        );
+
+  
+
+        User? user = result.user;
+
+        if (user != null) {
+
+          await user.updateDisplayName(name);
+
+          await _createFirebaseUserDocument(user, name, state, role, schoolCode, studentClass);
+
+        }
+
+  
+
+        return result;
+
+      } on FirebaseAuthException catch (e) {
+
+        print('Firebase sign up error: ${e.code}');
+
+        throw _handleAuthException(e);
+
+      }
+
     }
-  }
+
+  
+
+    Future<UserCredential?> _firebaseSignIn(String email, String password) async {
+
+      try {
+
+        UserCredential result = await _auth!.signInWithEmailAndPassword(
+
+          email: email,
+
+          password: password,
+
+        );
+
+        return result;
+
+      } on FirebaseAuthException catch (e) {
+
+        print('Firebase sign in error: ${e.code}');
+
+        throw _handleAuthException(e);
+
+      }
+
+    }
+
+  
+
+    Future<UserCredential?> _firebaseSignInAnonymously() async {
+
+      try {
+
+        UserCredential result = await _auth!.signInAnonymously();
+
+        User? user = result.user;
+
+        if (user != null) {
+
+          await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown', 'student', '00', '1');
+
+        }
+
+        return result;
+
+      } on FirebaseAuthException catch (e) {
+
+        print('Firebase anonymous sign in error: ${e.code}');
+
+        throw _handleAuthException(e);
+
+      } catch (e) {
+
+        print('Firebase anonymous sign in error: $e');
+
+        throw Exception('Failed to sign in as guest. Please try again.');
+
+      }
+
+    }
+
+  
+
+    Future<void> _createFirebaseUserDocument(User user, String name, String state, String role, String? schoolCode, String? studentClass) async {
+
+      try {
+
+        await _firestore!.collection('users').doc(user.uid).set({
+
+          'uid': user.uid,
+
+          'email': user.email ?? '',
+
+          'name': name,
+
+          'state': state,
+
+          'role': role,
+
+          'schoolCode': schoolCode,
+
+          'studentClass': studentClass,
+
+          'createdAt': FieldValue.serverTimestamp(),
+
+          'totalScore': 0,
+
+          'completedDrills': [],
+
+          'achievements': [],
+
+          'profileImageUrl': '',
+
+          'isAnonymous': user.isAnonymous,
+
+        });
+
+      } catch (e) {
+
+        print('Error creating Firebase user document: $e');
+
+        rethrow;
+
+      }
+
+    }
+
+  
+
+    // Mock implementations
+
+    Future<MockUser?> _mockSignUp(String email, String password, String name, String state, String role, String? schoolCode, String? studentClass) async {
+
+      try {
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        
+
+        final mockUser = MockUser(
+
+          uid: 'user_${DateTime.now().millisecondsSinceEpoch}',
+
+          email: email,
+
+          displayName: name,
+
+        );
+
+        
+
+        _mockUserData[mockUser.uid] = UserModel(
+
+          uid: mockUser.uid,
+
+          email: email,
+
+          name: name,
+
+          state: state,
+
+          role: role,
+
+          schoolCode: schoolCode,
+
+          studentClass: studentClass,
+
+          totalScore: 0,
+
+          completedDrills: [],
+
+          achievements: [],
+
+          profileImageUrl: '',
+
+          isAnonymous: false,
+
+          createdAt: DateTime.now(),
+
+        );
+
+        
+
+        _mockCurrentUser = mockUser;
+
+        _authStateController.add(mockUser);
+
+        
+
+        return mockUser;
+
+      } catch (e) {
+
+        print('Mock sign up error: $e');
+
+        rethrow;
+
+      }
+
+    }
+
+  
+
+    Future<MockUser?> _mockSignIn(String email, String password) async {
+
+      try {
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        
+
+        final mockUser = MockUser(
+
+          uid: 'existing_user_${email.hashCode}',
+
+          email: email,
+
+          displayName: 'Test User',
+
+        );
+
+        
+
+        if (!_mockUserData.containsKey(mockUser.uid)) {
+
+          _mockUserData[mockUser.uid] = UserModel(
+
+            uid: mockUser.uid,
+
+            email: email,
+
+            name: 'Test User',
+
+            state: 'California',
+
+            role: 'student',
+
+            totalScore: 150,
+
+            completedDrills: [],
+
+            achievements: [],
+
+            profileImageUrl: '',
+
+            isAnonymous: false,
+
+            createdAt: DateTime.now().subtract(const Duration(days: 30)),
+
+          );
+
+        }
+
+        
+
+        _mockCurrentUser = mockUser;
+
+        _authStateController.add(mockUser);
+
+        
+
+        return mockUser;
+
+      } catch (e) {
+
+        print('Mock sign in error: $e');
+
+        rethrow;
+
+      }
+
+    }
+
+  
+
+    Future<MockUser?> _mockSignInAnonymously() async {
+
+      try {
+
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        
+
+        final mockUser = MockUser(
+
+          uid: 'anonymous_${DateTime.now().millisecondsSinceEpoch}',
+
+          displayName: 'Anonymous User',
+
+          isAnonymous: true,
+
+        );
+
+        
+
+        _mockUserData[mockUser.uid] = UserModel(
+
+          uid: mockUser.uid,
+
+          email: '',
+
+          name: 'Anonymous User',
+
+          state: 'Unknown',
+
+          role: 'student',
+
+          totalScore: 0,
+
+          completedDrills: [],
+
+          achievements: [],
+
+          profileImageUrl: '',
+
+          isAnonymous: true,
+
+          createdAt: DateTime.now(),
+
+        );
+
+        
+
+        _mockCurrentUser = mockUser;
+
+        _authStateController.add(mockUser);
+
+        
+
+        return mockUser;
+
+      } catch (e) {
+
+        print('Mock anonymous sign in error: $e');
+
+        rethrow;
+
+      }
+
+    }
 
   // Utility methods that work with both Firebase and Mock
   Future<UserModel?> getUserData() async {

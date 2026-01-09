@@ -76,13 +76,14 @@ class AuthService {
     required String password,
     required String name,
     required String state,
+    required String role,
   }) async {
     _initializeFirebaseIfNeeded();
     
     if (_isFirebaseAvailable) {
-      return _firebaseSignUp(email, password, name, state);
+      return _firebaseSignUp(email, password, name, state, role);
     } else {
-      return _mockSignUp(email, password, name, state);
+      return _mockSignUp(email, password, name, state, role);
     }
   }
 
@@ -124,7 +125,7 @@ class AuthService {
   }
 
   // Firebase implementations
-  Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state) async {
+  Future<UserCredential?> _firebaseSignUp(String email, String password, String name, String state, String role) async {
     try {
       UserCredential result = await _auth!.createUserWithEmailAndPassword(
         email: email,
@@ -134,7 +135,7 @@ class AuthService {
       User? user = result.user;
       if (user != null) {
         await user.updateDisplayName(name);
-        await _createFirebaseUserDocument(user, name, state);
+        await _createFirebaseUserDocument(user, name, state, role);
       }
 
       return result;
@@ -162,7 +163,7 @@ class AuthService {
       UserCredential result = await _auth!.signInAnonymously();
       User? user = result.user;
       if (user != null) {
-        await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown');
+        await _createFirebaseUserDocument(user, 'Anonymous User', 'Unknown', 'student');
       }
       return result;
     } catch (e) {
@@ -171,13 +172,14 @@ class AuthService {
     }
   }
 
-  Future<void> _createFirebaseUserDocument(User user, String name, String state) async {
+  Future<void> _createFirebaseUserDocument(User user, String name, String state, String role) async {
     try {
       await _firestore!.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'email': user.email ?? '',
         'name': name,
         'state': state,
+        'role': role,
         'createdAt': FieldValue.serverTimestamp(),
         'totalScore': 0,
         'completedDrills': [],
@@ -192,7 +194,7 @@ class AuthService {
   }
 
   // Mock implementations
-  Future<MockUser?> _mockSignUp(String email, String password, String name, String state) async {
+  Future<MockUser?> _mockSignUp(String email, String password, String name, String state, String role) async {
     try {
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -207,6 +209,7 @@ class AuthService {
         email: email,
         name: name,
         state: state,
+        role: role,
         totalScore: 0,
         completedDrills: [],
         achievements: [],
@@ -241,6 +244,7 @@ class AuthService {
           email: email,
           name: 'Test User',
           state: 'California',
+          role: 'student',
           totalScore: 150,
           completedDrills: [],
           achievements: [],
@@ -275,6 +279,7 @@ class AuthService {
         email: '',
         name: 'Anonymous User',
         state: 'Unknown',
+        role: 'student',
         totalScore: 0,
         completedDrills: [],
         achievements: [],

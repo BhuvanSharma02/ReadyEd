@@ -90,6 +90,326 @@ class _QuizScreenState extends State<QuizScreen>
         ],
       },
     ],
+    'cyclone': [
+      {
+        'question': 'What is a cyclone?',
+        'answers': [
+          {'text': 'A powerful spinning storm with strong winds', 'correct': true},
+          {'text': 'A sudden shaking of the ground', 'correct': false},
+          {'text': 'A giant ocean wave', 'correct': false},
+          {'text': 'A period of no rain', 'correct': false},
+        ],
+      },
+      {
+        'question': 'Where do cyclones form?',
+        'answers': [
+          {'text': 'Over warm ocean waters', 'correct': true},
+          {'text': 'Over dry land', 'correct': false},
+          {'text': 'In the mountains', 'correct': false},
+          {'text': 'In cold polar regions', 'correct': false},
+        ],
+      },
+    ],
+    'drought': [
+      {
+        'question': 'What happens during a drought?',
+        'answers': [
+          {'text': 'There is not enough rain for a long time', 'correct': true},
+          {'text': 'It rains too much', 'correct': false},
+          {'text': 'The wind blows very hard', 'correct': false},
+          {'text': 'The ground shakes', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What is important to do during a drought?',
+        'answers': [
+          {'text': 'Conserve water', 'correct': true},
+          {'text': 'Plant more flowers', 'correct': false},
+          {'text': 'Wash your car every day', 'correct': false},
+          {'text': 'Leave the tap running', 'correct': false},
+        ],
+      },
+    ],
+    'landslide': [
+      {
+        'question': 'What causes a landslide?',
+        'answers': [
+          {'text': 'Heavy rain or earthquakes making ground unstable', 'correct': true},
+          {'text': 'Strong winds blowing rocks uphill', 'correct': false},
+          {'text': 'Too much sunlight', 'correct': false},
+          {'text': 'Birds landing on trees', 'correct': false},
+        ],
+      },
+      {
+        'question': 'Where do landslides usually happen?',
+        'answers': [
+          {'text': 'On slopes or hillsides', 'correct': true},
+          {'text': 'On flat plains', 'correct': false},
+          {'text': 'In the middle of the ocean', 'correct': false},
+          {'text': 'In the desert', 'correct': false},
+        ],
+      },
+    ],
+    'heatwave': [
+      {
+        'question': 'What is a heatwave?',
+        'answers': [
+          {'text': 'A long period of very hot weather', 'correct': true},
+          {'text': 'A day with nice warm sun', 'correct': false},
+          {'text': 'A sudden burst of cold air', 'correct': false},
+          {'text': 'A warm ocean current', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What should you drink plenty of during a heatwave?',
+        'answers': [
+          {'text': 'Water', 'correct': true},
+          {'text': 'Hot coffee', 'correct': false},
+          {'text': 'Salty soup', 'correct': false},
+          {'text': 'Nothing', 'correct': false},
+        ],
+      },
+    ],
+    'thunderstorm': [
+      {
+        'question': 'What always comes with thunder?',
+        'answers': [
+          {'text': 'Lightning', 'correct': true},
+          {'text': 'Snow', 'correct': false},
+          {'text': 'Hail', 'correct': false},
+          {'text': 'Rainbows', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What causes the sound of thunder?',
+        'answers': [
+          {'text': 'Lightning heating the air rapidly', 'correct': true},
+          {'text': 'Clouds bumping into each other', 'correct': false},
+          {'text': 'Angels bowling', 'correct': false},
+          {'text': 'The wind whistling', 'correct': false},
+        ],
+      },
+    ],
+    'forest_fire': [
+      {
+        'question': 'What makes forest fires spread faster?',
+        'answers': [
+          {'text': 'Dry weather and strong winds', 'correct': true},
+          {'text': 'Rain and snow', 'correct': false},
+          {'text': 'Green leaves', 'correct': false},
+          {'text': 'Night time', 'correct': false},
+        ],
+      },
+      {
+        'question': 'How are most wildfires started?',
+        'answers': [
+          {'text': 'By humans', 'correct': true},
+          {'text': 'By lightning', 'correct': false},
+          {'text': 'By volcanoes', 'correct': false},
+          {'text': 'By the sun', 'correct': false},
+        ],
+      },
+    ],
+    'tsunami': [
+      {
+        'question': 'What is a tsunami?',
+        'answers': [
+          {'text': 'A series of giant ocean waves', 'correct': true},
+          {'text': 'A big storm at sea', 'correct': false},
+          {'text': 'A high tide', 'correct': false},
+          {'text': 'A waterfall in the ocean', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What usually causes a tsunami?',
+        'answers': [
+          {'text': 'Underwater earthquakes', 'correct': true},
+          {'text': 'Strong winds', 'correct': false},
+          {'text': 'Ships moving too fast', 'correct': false},
+          {'text': 'Whales jumping', 'correct': false},
+        ],
+      },
+    ],
+    'avalanche': [
+      {
+        'question': 'What is an avalanche?',
+        'answers': [
+          {'text': 'A rapid flow of snow down a slope', 'correct': true},
+          {'text': 'A heavy snowfall', 'correct': false},
+          {'text': 'Ice melting on a roof', 'correct': false},
+          {'text': 'A snowstorm', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What can trigger an avalanche?',
+        'answers': [
+          {'text': 'New heavy snow or loud noises', 'correct': true},
+          {'text': 'Sunlight', 'correct': false},
+          {'text': 'Cold temperatures', 'correct': false},
+          {'text': 'Moonlight', 'correct': false},
+        ],
+      },
+    ],
+    'air_pollution': [
+      {
+        'question': 'What is air pollution?',
+        'answers': [
+          {'text': 'Harmful substances in the air', 'correct': true},
+          {'text': 'Fog in the morning', 'correct': false},
+          {'text': 'Clouds in the sky', 'correct': false},
+          {'text': 'Wind blowing dust', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What is a major cause of air pollution?',
+        'answers': [
+          {'text': 'Vehicle exhaust and factories', 'correct': true},
+          {'text': 'Trees breathing', 'correct': false},
+          {'text': 'Rain falling', 'correct': false},
+          {'text': 'Rivers flowing', 'correct': false},
+        ],
+      },
+    ],
+    'dust_storm': [
+      {
+        'question': 'What happens in a dust storm?',
+        'answers': [
+          {'text': 'Strong winds blow dust and reduce visibility', 'correct': true},
+          {'text': 'It rains mud', 'correct': false},
+          {'text': 'The sky turns blue', 'correct': false},
+          {'text': 'Trees grow faster', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What should you cover during a dust storm?',
+        'answers': [
+          {'text': 'Nose and mouth', 'correct': true},
+          {'text': 'Ears', 'correct': false},
+          {'text': 'Hands', 'correct': false},
+          {'text': 'Feet', 'correct': false},
+        ],
+      },
+    ],
+    'fog': [
+      {
+        'question': 'What is fog?',
+        'answers': [
+          {'text': 'A cloud that touches the ground', 'correct': true},
+          {'text': 'Smoke from a fire', 'correct': false},
+          {'text': 'Steam from a kettle', 'correct': false},
+          {'text': 'Dust in the air', 'correct': false},
+        ],
+      },
+      {
+        'question': 'Why is fog dangerous?',
+        'answers': [
+          {'text': 'It makes it hard to see (low visibility)', 'correct': true},
+          {'text': 'It is toxic', 'correct': false},
+          {'text': 'It is very hot', 'correct': false},
+          {'text': 'It causes floods', 'correct': false},
+        ],
+      },
+    ],
+    'hailstorm': [
+      {
+        'question': 'What falls from the sky during a hailstorm?',
+        'answers': [
+          {'text': 'Balls of ice', 'correct': true},
+          {'text': 'Rocks', 'correct': false},
+          {'text': 'Frogs', 'correct': false},
+          {'text': 'Hot water', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What can hail damage?',
+        'answers': [
+          {'text': 'Cars, windows, and crops', 'correct': true},
+          {'text': 'Roads and bridges', 'correct': false},
+          {'text': 'Underground pipes', 'correct': false},
+          {'text': 'Fish in the ocean', 'correct': false},
+        ],
+      },
+    ],
+    'flash_flood': [
+      {
+        'question': 'How fast does a flash flood happen?',
+        'answers': [
+          {'text': 'Very quickly, often in minutes', 'correct': true},
+          {'text': 'Slowly over weeks', 'correct': false},
+          {'text': 'It takes a whole day', 'correct': false},
+          {'text': 'It never happens quickly', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What should you do if you see a flooded road?',
+        'answers': [
+          {'text': 'Turn Around, Don\'t Drown', 'correct': true},
+          {'text': 'Drive through it fast', 'correct': false},
+          {'text': 'Walk through it', 'correct': false},
+          {'text': 'Swim in it', 'correct': false},
+        ],
+      },
+    ],
+    'locust_attack': [
+      {
+        'question': 'What do locust swarms eat?',
+        'answers': [
+          {'text': 'Crops and vegetation', 'correct': true},
+          {'text': 'Other insects', 'correct': false},
+          {'text': 'Dirt', 'correct': false},
+          {'text': 'Water', 'correct': false},
+        ],
+      },
+      {
+        'question': 'Why are locust attacks a problem?',
+        'answers': [
+          {'text': 'They destroy food supplies', 'correct': true},
+          {'text': 'They bite people', 'correct': false},
+          {'text': 'They carry diseases', 'correct': false},
+          {'text': 'They make too much noise', 'correct': false},
+        ],
+      },
+    ],
+    'coastal_erosion': [
+      {
+        'question': 'What causes coastal erosion?',
+        'answers': [
+          {'text': 'Waves and currents wearing away land', 'correct': true},
+          {'text': 'Fish digging holes', 'correct': false},
+          {'text': 'Boats parking on the beach', 'correct': false},
+          {'text': 'Sunlight drying the sand', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What helps protect coastlines from erosion?',
+        'answers': [
+          {'text': 'Mangroves and sea walls', 'correct': true},
+          {'text': 'Building hotels', 'correct': false},
+          {'text': 'Removing sand', 'correct': false},
+          {'text': 'Swimming near the shore', 'correct': false},
+        ],
+      },
+    ],
+    'monsoon_flooding': [
+      {
+        'question': 'When does monsoon flooding usually happen?',
+        'answers': [
+          {'text': 'During the rainy season', 'correct': true},
+          {'text': 'In the middle of winter', 'correct': false},
+          {'text': 'During a drought', 'correct': false},
+          {'text': 'Whenever it is sunny', 'correct': false},
+        ],
+      },
+      {
+        'question': 'What causes rivers to overflow during monsoons?',
+        'answers': [
+          {'text': 'Continuous heavy rainfall', 'correct': true},
+          {'text': 'Melting glaciers only', 'correct': false},
+          {'text': 'Strong winds', 'correct': false},
+          {'text': 'High tides', 'correct': false},
+        ],
+      },
+    ],
   };
 
   void _answerQuestion(bool isCorrect, int answerIndex) {

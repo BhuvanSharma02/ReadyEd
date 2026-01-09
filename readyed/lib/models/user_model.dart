@@ -7,6 +7,7 @@ class UserModel {
   final String state;
   final String? schoolCode;
   final String? studentClass;
+  final String role; // 'student' or 'teacher'
   final DateTime createdAt;
   final int totalScore;
   final List<CompletedDrill> completedDrills;
@@ -21,6 +22,7 @@ class UserModel {
     required this.state,
     this.schoolCode,
     this.studentClass,
+    required this.role,
     required this.createdAt,
     required this.totalScore,
     required this.completedDrills,
@@ -37,6 +39,7 @@ class UserModel {
       state: map['state'] ?? 'Unknown',
       schoolCode: map['schoolCode'],
       studentClass: map['studentClass'],
+      role: map['role'] ?? 'student',
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       totalScore: map['totalScore'] ?? 0,
       completedDrills: (map['completedDrills'] as List<dynamic>?)
@@ -57,6 +60,7 @@ class UserModel {
       'state': state,
       'schoolCode': schoolCode,
       'studentClass': studentClass,
+      'role': role,
       'createdAt': Timestamp.fromDate(createdAt),
       'totalScore': totalScore,
       'completedDrills': completedDrills.map((drill) => drill.toMap()).toList(),
@@ -73,6 +77,7 @@ class UserModel {
     String? state,
     String? schoolCode,
     String? studentClass,
+    String? role,
     DateTime? createdAt,
     int? totalScore,
     List<CompletedDrill>? completedDrills,
@@ -87,6 +92,7 @@ class UserModel {
       state: state ?? this.state,
       schoolCode: schoolCode ?? this.schoolCode,
       studentClass: studentClass ?? this.studentClass,
+      role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
       totalScore: totalScore ?? this.totalScore,
       completedDrills: completedDrills ?? this.completedDrills,

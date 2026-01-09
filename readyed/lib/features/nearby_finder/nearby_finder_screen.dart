@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import 'student_compass_screen.dart';
@@ -20,24 +22,30 @@ class NearbyFinderScreen extends StatefulWidget {
 class StudentInfo {
   final String name;
   final String id;
-  double? distance;
+  double? distance; // Meters
+  double? bearing; // Degrees
   double? lat;
   double? lng;
   double? accuracy;
+  DateTime lastSeen;
+  bool isFound;
   
   StudentInfo({
     required this.name, 
     required this.id, 
     this.distance,
+    this.bearing,
     this.lat,
     this.lng,
     this.accuracy,
+    required this.lastSeen,
+    this.isFound = false,
   });
 }
 
 class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
   final Strategy strategy = Strategy.P2P_STAR;
-  final String serviceId = "com.readyed.app"; // Unique Service ID
+  final String serviceId = "com.readyed.app"; 
   UserModel? currentUser;
   bool isTeacher = false;
   bool isStudent = false;
@@ -47,14 +55,27 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
   // Map of endpointId -> StudentInfo
   final Map<String, StudentInfo> _foundStudents = {};
   
-  // New variables for location updates
   String? _connectedTeacherId; 
-  Timer? _locationTimer; 
+  StudentInfo? _teacherInfo; // To store teacher's location
+  StreamSubscription<Position>? _locationStream;
+  StreamSubscription<CompassEvent>? _compassStream;
+  double? _currentHeading;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _initCompass();
+  }
+
+  void _initCompass() {
+    _compassStream = FlutterCompass.events?.listen((event) {
+      if (mounted) {
+        setState(() {
+          _currentHeading = event.heading;
+        });
+      }
+    });
   }
 
   Future<void> _loadUser() async {
@@ -69,14 +90,19 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
 
   @override
   void dispose() {
-    _locationTimer?.cancel();
+    _stopLocationStream();
+    _compassStream?.cancel();
     Nearby().stopAdvertising();
     Nearby().stopDiscovery();
     super.dispose();
   }
 
+  void _stopLocationStream() {
+    _locationStream?.cancel();
+    _locationStream = null;
+  }
+
   Future<void> _checkPermissions() async {
-    // Check and request permissions needed for Nearby Connections
     Map<Permission, PermissionStatus> statuses = await [
       Permission.location,
       Permission.bluetooth,
@@ -95,6 +121,10 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
     }
   }
 
+  // ----------------------------------------------------------------------
+  // STUDENT LOGIC
+  // ----------------------------------------------------------------------
+
   void _startAdvertising() async {
     await _checkPermissions();
     if (currentUser == null) return;
@@ -105,34 +135,46 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         strategy,
         serviceId: serviceId,
         onConnectionInitiated: (String id, ConnectionInfo info) {
-          // Auto-accept connection to share location
           Nearby().acceptConnection(
             id,
             onPayLoadRecieved: (endpointId, payload) {
-              // Student shouldn't receive payloads in this basic implementation
+              if (payload.type == PayloadType.BYTES) {
+                String str = utf8.decode(payload.bytes!);
+                try {
+                  _processTeacherLocationData(endpointId, str);
+                } catch (e) {
+                  print("Error parsing teacher payload: $e");
+                }
+              }
             },
           );
         },
         onConnectionResult: (String id, Status status) {
           if (status == Status.CONNECTED) {
-            // Connected to teacher! Start sending location updates.
             setState(() {
               _connectedTeacherId = id;
             });
-            _startSendingLocation(id);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Connected to Teacher. Sending location...')),
+            );
+            _startStudentLocationStream(id);
           } else {
             setState(() {
               _connectedTeacherId = null;
+              _teacherInfo = null;
             });
-            _locationTimer?.cancel();
+            _stopLocationStream();
           }
         },
         onDisconnected: (String id) {
-          print('Disconnected: $id');
           setState(() {
             _connectedTeacherId = null;
+            _teacherInfo = null;
           });
-          _locationTimer?.cancel();
+          _stopLocationStream();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Disconnected from Teacher')),
+          );
         },
       );
       
@@ -140,74 +182,115 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         setState(() {
           isAdvertising = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You are now visible to teachers.')),
-        );
       }
     } catch (e) {
       print('Error starting advertising: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
     }
   }
 
-  void _startSendingLocation(String endpointId) {
-    _locationTimer?.cancel();
-    _sendLocation(endpointId); // Send immediately
-    
-    // Then send every 2 seconds
-    _locationTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (_connectedTeacherId == endpointId) {
-        _sendLocation(endpointId);
-      } else {
-        timer.cancel();
-      }
+  void _disconnectFromTeacher() async {
+    if (_connectedTeacherId != null) {
+      await Nearby().disconnectFromEndpoint(_connectedTeacherId!);
+      setState(() {
+        _connectedTeacherId = null;
+        _teacherInfo = null;
+      });
+      _stopLocationStream();
+    }
+  }
+
+  Future<void> _processTeacherLocationData(String endpointId, String jsonStr) async {
+    try {
+      final data = jsonDecode(jsonStr);
+      if (data['lat'] == null || data['lng'] == null) return;
+      
+      final double lat = data['lat'];
+      final double lng = data['lng'];
+      
+      Position myPos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      double distance = Geolocator.distanceBetween(
+        myPos.latitude,
+        myPos.longitude,
+        lat,
+        lng,
+      );
+
+      double bearing = Geolocator.bearingBetween(
+        myPos.latitude,
+        myPos.longitude,
+        lat,
+        lng,
+      );
+      
+      setState(() {
+        _teacherInfo = StudentInfo(
+          name: "Teacher", 
+          id: endpointId,
+          distance: distance,
+          bearing: bearing,
+          lat: lat,
+          lng: lng,
+          lastSeen: DateTime.now(),
+        );
+      });
+    } catch (e) {
+      print("Error processing teacher location: $e");
+    }
+  }
+
+  void _startStudentLocationStream(String teacherId) {
+    _sendLocationUpdate(teacherId);
+
+    _locationStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5, 
+      ),
+    ).listen((Position position) {
+      _sendLocationPayload(teacherId, position);
     });
   }
 
-  Future<void> _sendLocation(String endpointId) async {
+  Future<void> _sendLocationUpdate(String teacherId) async {
     try {
-      Position? position;
-      try {
-        // Try getting high accuracy location with a timeout
-        position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 5),
-        );
-      } catch (e) {
-        print('GPS timeout or error: $e');
-        // Fallback to last known position
-        position = await Geolocator.getLastKnownPosition();
-      }
-
-      if (position != null) {
-        Map<String, dynamic> locationData = {
-          'lat': position.latitude,
-          'lng': position.longitude,
-          'acc': position.accuracy,
-        };
-        
-        String jsonString = jsonEncode(locationData);
-        Nearby().sendBytesPayload(endpointId, Uint8List.fromList(utf8.encode(jsonString)));
-      }
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      _sendLocationPayload(teacherId, position);
     } catch (e) {
-      print('Error sending location: $e');
+      print("Error getting location: $e");
     }
   }
 
+  void _sendLocationPayload(String endpointId, Position position) {
+    Map<String, dynamic> locationData = {
+      'lat': position.latitude,
+      'lng': position.longitude,
+      'acc': position.accuracy,
+    };
+    
+    String jsonString = jsonEncode(locationData);
+    Nearby().sendBytesPayload(endpointId, Uint8List.fromList(utf8.encode(jsonString)));
+  }
+
   void _stopAdvertising() async {
-    _locationTimer?.cancel();
     await Nearby().stopAdvertising();
+    _stopLocationStream();
     if (mounted) {
       setState(() {
         isAdvertising = false;
         _connectedTeacherId = null;
+        _teacherInfo = null;
       });
     }
   }
+
+  // ----------------------------------------------------------------------
+  // TEACHER LOGIC
+  // ----------------------------------------------------------------------
 
   void _startDiscovery() async {
     await _checkPermissions();
@@ -219,12 +302,6 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         strategy,
         serviceId: serviceId,
         onEndpointFound: (id, userName, serviceId) {
-          // Found a student!
-          setState(() {
-            _foundStudents[id] = StudentInfo(name: userName, id: id);
-          });
-          
-          // Auto-request connection to get location
           Nearby().requestConnection(
             currentUser!.name,
             id,
@@ -240,7 +317,14 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
               );
             },
             onConnectionResult: (id, status) {
-              print('Connection status: $status');
+              if (status == Status.CONNECTED) {
+                 setState(() {
+                   if (!_foundStudents.containsKey(id)) {
+                     _foundStudents[id] = StudentInfo(name: userName, id: id, lastSeen: DateTime.now());
+                   }
+                 });
+                 _startTeacherLocationStream(id);
+              }
             },
             onDisconnected: (id) {
               setState(() {
@@ -250,7 +334,6 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
           );
         },
         onEndpointLost: (id) {
-          // Lost a student
           setState(() {
             _foundStudents.remove(id);
           });
@@ -260,30 +343,38 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
       if (a && mounted) {
         setState(() {
           isDiscovering = true;
-          _foundStudents.clear(); // Clear previous list
+          _foundStudents.clear();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Searching for students...')),
-        );
       }
     } catch (e) {
       print('Error starting discovery: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
     }
   }
-  
+
+  void _startTeacherLocationStream(String studentId) {
+    if (_locationStream != null) return;
+
+    _locationStream = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen((Position position) {
+      for (String id in _foundStudents.keys) {
+        _sendLocationPayload(id, position);
+      }
+    });
+  }
+
   Future<void> _processLocationData(String endpointId, String jsonStr) async {
     try {
       final data = jsonDecode(jsonStr);
+      if (data['lat'] == null || data['lng'] == null) return;
+
       final double studentLat = data['lat'];
       final double studentLng = data['lng'];
       final double accuracy = (data['acc'] as num).toDouble();
       
-      // Get teacher's location
       Position teacherPos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -294,17 +385,34 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         studentLat,
         studentLng,
       );
+
+      double bearing = Geolocator.bearingBetween(
+        teacherPos.latitude,
+        teacherPos.longitude,
+        studentLat,
+        studentLng,
+      );
       
       setState(() {
         if (_foundStudents.containsKey(endpointId)) {
           final student = _foundStudents[endpointId]!;
+          bool isFound = student.isFound;
+          if (distanceInMeters < 10) {
+            isFound = true;
+          } else if (distanceInMeters > 20) {
+            isFound = false;
+          }
+
           _foundStudents[endpointId] = StudentInfo(
             name: student.name,
             id: student.id,
-            distance: distanceInMeters,
+            distance: isFound ? 0.0 : distanceInMeters,
+            bearing: bearing,
             lat: studentLat,
             lng: studentLng,
             accuracy: accuracy,
+            lastSeen: DateTime.now(),
+            isFound: isFound,
           );
         }
       });
@@ -316,6 +424,7 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
 
   void _stopDiscovery() async {
     await Nearby().stopDiscovery();
+    _stopLocationStream();
     if (mounted) {
       setState(() {
         isDiscovering = false;
@@ -323,6 +432,10 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
       });
     }
   }
+
+  // ----------------------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -360,11 +473,7 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         ),
         const SizedBox(height: 32),
         ElevatedButton.icon(
-          onPressed: () {
-            setState(() {
-              isTeacher = true;
-            });
-          },
+          onPressed: () => setState(() => isTeacher = true),
           icon: const Icon(Icons.school, size: 32),
           label: const Padding(
             padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -377,11 +486,7 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
-          onPressed: () {
-            setState(() {
-              isStudent = true;
-            });
-          },
+          onPressed: () => setState(() => isStudent = true),
           icon: const Icon(Icons.person, size: 32),
           label: const Padding(
             padding: EdgeInsets.symmetric(vertical: 16.0),
@@ -396,129 +501,128 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
     return Expanded(
       child: Column(
         children: [
-          Card(
-            color: Colors.blue.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Icon(Icons.radar, size: 48, color: Colors.blue),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Student Finder',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Container(
+            height: 300,
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black26)],
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: CustomPaint(
+                    size: const Size(300, 300),
+                    painter: RadarPainter(),
                   ),
-                  const SizedBox(height: 8),
-                  Text(isDiscovering ? 'Scanning for students nearby...' : 'Start scanning to find students'),
-                ],
-              ),
+                ),
+                const Center(
+                  child: Icon(Icons.navigation, color: Colors.white, size: 30),
+                ),
+                ..._foundStudents.values.map((student) {
+                  if (student.isFound) {
+                    return const Center(
+                      child: Tooltip(
+                        message: 'Student Found!',
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.blueAccent,
+                          child: Icon(Icons.check, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    );
+                  }
+                  if (student.distance == null || student.bearing == null) return const SizedBox.shrink();
+                  const double maxRange = 100.0;
+                  const double radius = 140.0;
+                  double relativeBearing = (student.bearing! - (_currentHeading ?? 0)) * (math.pi / 180);
+                  double distFactor = (student.distance! / maxRange).clamp(0.0, 1.0);
+                  double r = distFactor * radius;
+                  double dx = r * math.sin(relativeBearing);
+                  double dy = -r * math.cos(relativeBearing);
+                  return Center(
+                    child: Transform.translate(
+                      offset: Offset(dx, dy),
+                      child: Tooltip(
+                        message: '${student.name} (${student.distance!.toStringAsFixed(1)}m)',
+                        triggerMode: TooltipTriggerMode.tap,
+                        child: const CircleAvatar(
+                          radius: 10,
+                          backgroundColor: Colors.greenAccent,
+                          child: Icon(Icons.person, size: 12, color: Colors.black),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                Positioned(
+                  bottom: 10, left: 0, right: 0,
+                  child: Text(
+                    isDiscovering ? "Scanning... (${_foundStudents.length} Connected)" : "Radar Off",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
           if (!isDiscovering)
             ElevatedButton(
               onPressed: _startDiscovery,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Start Scanning'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+              child: const Text('Start Radar'),
             )
           else
             ElevatedButton(
               onPressed: _stopDiscovery,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Stop Scanning'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Stop Radar'),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           const Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              'Nearby Students:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            child: Text('Connected Students:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(height: 8),
           Expanded(
             child: _foundStudents.isEmpty
-                ? Center(
-                    child: Text(
-                      isDiscovering ? 'Searching...' : 'No students found yet',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  )
+                ? Center(child: Text('No connections yet', style: TextStyle(color: Colors.grey[600])))
                 : ListView.builder(
                     itemCount: _foundStudents.length,
                     itemBuilder: (context, index) {
                       final id = _foundStudents.keys.elementAt(index);
                       final student = _foundStudents[id]!;
-                      
-                      // Determine display text and signal icon based on distance/accuracy
-                      String subtitleText = 'Connecting for location...';
+                      String subtitleText = 'Connected';
                       Color distanceColor = Colors.grey;
-                      IconData signalIcon = Icons.signal_wifi_0_bar;
-                      
-                      if (student.distance != null) {
-                         // Icon based on distance (Hot/Cold)
-                         if (student.distance! < 5) {
+                      IconData signalIcon = Icons.signal_wifi_off;
+                      if (student.isFound) {
+                         subtitleText = 'Found! (Nearby)';
+                         distanceColor = Colors.blue;
+                         signalIcon = Icons.check_circle;
+                      } else if (student.distance != null) {
+                         if (student.distance! < 10) {
                            signalIcon = Icons.signal_wifi_4_bar;
                            distanceColor = Colors.green;
-                         } else if (student.distance! < 10) {
+                         } else if (student.distance! < 50) {
                            signalIcon = Icons.network_wifi_3_bar;
                            distanceColor = Colors.lightGreen;
-                         } else if (student.distance! < 20) {
-                           signalIcon = Icons.network_wifi_2_bar;
-                           distanceColor = Colors.orange;
                          } else {
                            signalIcon = Icons.network_wifi_1_bar;
-                           distanceColor = Colors.red;
+                           distanceColor = Colors.orange;
                          }
-
-                         // Text warning if accuracy is bad
-                         if (student.accuracy != null && student.accuracy! > 20) {
-                           subtitleText = 'Low GPS Signal (Approx. ${student.distance!.toStringAsFixed(0)}m)';
-                           // Keep the distance color (e.g. Red/Orange) to show it's "Far" or "Uncertain"
-                         } else {
-                           subtitleText = '${student.distance!.toStringAsFixed(1)} meters away';
-                         }
+                         subtitleText = '${student.distance!.toStringAsFixed(1)}m away';
                       }
-                      
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFF2E7D8F),
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
+                          leading: const CircleAvatar(backgroundColor: Color(0xFF2E7D8F), child: Icon(Icons.person, color: Colors.white)),
                           title: Text(student.name),
                           subtitle: Text(subtitleText),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(signalIcon, color: distanceColor),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.chevron_right),
-                            ],
-                          ),
+                          trailing: Icon(signalIcon, color: distanceColor),
                           onTap: () {
                             if (student.lat != null && student.lng != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => StudentCompassScreen(
-                                    studentName: student.name,
-                                    studentLat: student.lat!,
-                                    studentLng: student.lng!,
-                                  ),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Waiting for student location...')),
-                              );
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => StudentCompassScreen(studentName: student.name, studentLat: student.lat!, studentLng: student.lng!)));
                             }
                           },
                         ),
@@ -526,15 +630,7 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
                     },
                   ),
           ),
-          TextButton(
-            onPressed: () {
-              _stopDiscovery();
-              setState(() {
-                isTeacher = false;
-              });
-            },
-            child: const Text('Switch Role'),
-          ),
+          TextButton(onPressed: () { _stopDiscovery(); setState(() => isTeacher = false); }, child: const Text('Switch Role')),
         ],
       ),
     );
@@ -545,40 +641,62 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Card(
-            color: isAdvertising ? Colors.green.shade50 : Colors.grey.shade100,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  Icon(
-                    isAdvertising ? Icons.wifi_tethering : Icons.wifi_tethering_off,
-                    size: 64,
-                    color: isAdvertising ? Colors.green : Colors.grey,
+          Container(
+            height: 300,
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black26)],
+            ),
+            child: Stack(
+              children: [
+                Center(child: CustomPaint(size: const Size(300, 300), painter: RadarPainter())),
+                const Center(child: Icon(Icons.navigation, color: Colors.white, size: 30)),
+                if (_teacherInfo != null && _teacherInfo!.distance != null && _teacherInfo!.bearing != null)
+                  Builder(
+                    builder: (context) {
+                      const double maxRange = 100.0;
+                      const double radius = 140.0;
+                      double relativeBearing = (_teacherInfo!.bearing! - (_currentHeading ?? 0)) * (math.pi / 180);
+                      double distFactor = (_teacherInfo!.distance! / maxRange).clamp(0.0, 1.0);
+                      double r = distFactor * radius;
+                      double dx = r * math.sin(relativeBearing);
+                      double dy = -r * math.cos(relativeBearing);
+                      return Center(
+                        child: Transform.translate(
+                          offset: Offset(dx, dy),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircleAvatar(radius: 12, backgroundColor: Colors.orangeAccent, child: Icon(Icons.school, size: 16, color: Colors.black)),
+                              Text("${_teacherInfo!.distance!.toStringAsFixed(0)}m", style: const TextStyle(color: Colors.white, fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    isAdvertising ? 'Visible to Teachers' : 'Not Visible',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                Positioned(
+                  bottom: 10, left: 0, right: 0,
+                  child: Text(
+                    _connectedTeacherId != null ? "Connected to Teacher" : (isAdvertising ? "Broadcasting... Waiting for Teacher" : "Offline"),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70),
                   ),
-                  if (_connectedTeacherId != null) ...[
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Connected to Teacher',
-                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const Text('Sending location updates...', style: TextStyle(color: Colors.grey)),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    'Name: ${currentUser?.name ?? "Unknown"}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),
+          if (_connectedTeacherId != null) ...[
+            ElevatedButton.icon(
+              onPressed: _disconnectFromTeacher,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+              icon: const Icon(Icons.link_off),
+              label: const Text('Disconnect from Teacher'),
+            ),
+            const SizedBox(height: 16),
+          ],
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -588,24 +706,29 @@ class _NearbyFinderScreenState extends State<NearbyFinderScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(
-                isAdvertising ? 'Stop Broadcasting' : 'Make Me Visible',
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(isAdvertising ? 'Stop Broadcasting' : 'Connect to Teacher', style: const TextStyle(fontSize: 18)),
             ),
           ),
           const SizedBox(height: 16),
-          TextButton(
-            onPressed: () {
-              _stopAdvertising();
-              setState(() {
-                isStudent = false;
-              });
-            },
-            child: const Text('Switch Role'),
-          ),
+          TextButton(onPressed: () { _stopAdvertising(); setState(() => isStudent = false); }, child: const Text('Switch Role')),
         ],
       ),
     );
   }
+}
+
+class RadarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()..color = Colors.greenAccent.withOpacity(0.3)..style = PaintingStyle.stroke..strokeWidth = 1.0;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double maxRadius = size.width / 2 - 10;
+    canvas.drawCircle(center, maxRadius * 0.33, paint);
+    canvas.drawCircle(center, maxRadius * 0.66, paint);
+    canvas.drawCircle(center, maxRadius, paint);
+    canvas.drawLine(Offset(center.dx, center.dy - maxRadius), Offset(center.dx, center.dy + maxRadius), paint);
+    canvas.drawLine(Offset(center.dx - maxRadius, center.dy), Offset(center.dx + maxRadius, center.dy), paint);
+  }
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
